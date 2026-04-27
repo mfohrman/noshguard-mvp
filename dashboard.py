@@ -929,6 +929,59 @@ def run_engine_v7(recalls):
     matches, _ = run_engine_v8(recalls)
     return matches
 
+def run_engine_v8_with_customers(recalls, customers, max_workers=8):
+    """
+    Parallel engine variant that accepts an explicit customer list.
+    Used when running against uploaded CSV data instead of the
+    hardcoded CUSTOMERS constant — avoids globals() manipulation.
+    """
+    engine_start = time.perf_counter()
+
+    recall_meta = {}
+    for r in recalls:
+        recall_meta[id(r)] = {
+            "vs": velocity_score(r)[0],
+            "vl": velocity_score(r)[1],
+            "trajectory": get_trajectory(r),
+        }
+
+    pairs = []
+    for r in recalls:
+        meta = recall_meta[id(r)]
+        for c in customers:
+            pairs.append((r, c, meta["vs"], meta["vl"], meta["trajectory"]))
+
+    raw_results = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_score_one_pair, p): p for p in pairs}
+        for future in as_completed(futures):
+            result = future.result()
+            if result is not None:
+                raw_results.append(result)
+
+    seen = set()
+    matches = []
+    for m in sorted(raw_results, key=lambda x: x["priority"], reverse=True):
+        key = m["_pair_key"]
+        if key not in seen:
+            seen.add(key)
+            matches.append(m)
+
+    elapsed = time.perf_counter() - engine_start
+    benchmark = {
+        "elapsed_ms":      round(elapsed * 1000, 1),
+        "pairs_evaluated": len(pairs),
+        "matches_found":   len(matches),
+        "throughput":      int(len(pairs) / elapsed) if elapsed > 0 else 0,
+        "workers":         max_workers,
+        "customers":       len(customers),
+        "recalls":         len(recalls),
+    }
+
+    return sorted(matches, key=lambda x: x["priority"], reverse=True), benchmark
+
+
+
 
 # ═══════════════════════════════════════════════
 # PARALLEL ENGINE STUB — kept for reference
@@ -1090,7 +1143,7 @@ def _run_engine_sequential_reference(recalls):
 # shares across threads. Safe for concurrent reads/writes.
 # ═══════════════════════════════════════════════
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "noshguard.db")
+DB_PATH = os.path.join(os.environ.get("TMPDIR", "/tmp"), "noshguard.db")
 
 
 def _get_conn():
@@ -2429,30 +2482,50 @@ with tab1:
     with left:
         ft1,ft2 = st.tabs(["FDA Feed","USDA Feed"])
         def render_r(r):
-            sv,bc,bl=_sev(r["cls"]); cc=_cc(r["cls"])
-            vs,vl=velocity_score(r)
-            vc="#c0392b" if vs>=75 else "#d4830a" if vs>=50 else "#27ae60"
-            traj=get_trajectory(r)
-            traj_html='&nbsp;<span class="traj-badge">📈 UPGRADED</span>' if traj and traj["upgrade_type"]!="" else ""
-            allergen_html=f'&nbsp;<span class="allergen-badge">🚨 allergen: {r.get("allergen_trigger","?")}</span>' if r.get("allergen_trigger") else ""
-            is_new = _recall_hash(r) in new_recall_ids
-            new_html='&nbsp;<span style="background:#c0392b;color:white;font-size:0.66rem;padding:2px 7px;border-radius:10px;font-weight:bold;animation:pulse 1s infinite">🔴 NEW</span>' if is_new else ""
-            return f"""<div class="recall-card {cc}">
-                <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-                    <span class="badge src-{"fda" if r["source"]=="FDA" else "usda"}">{r["source"]}</span>
-                    <span class="badge {bc}">{bl}</span>
-                    {"<span class='upc-badge'>🔵 UPC</span>" if r.get("all_upcs") else ""}
-                    {traj_html}{allergen_html}
-                    <span style="font-size:0.64rem;color:#55556a;margin-left:auto">{r["date"]}</span>
-                </div>
-                <strong style="color:#e8e8f0;font-size:0.86rem;display:block;margin:4px 0 2px">{r["product"][:85]}{"…" if len(r["product"])>85 else ""}</strong>
-                <span style="color:#9090a8;font-size:0.76rem">{r["firm"][:55]}</span><br>
-                <span style="color:#55556a;font-size:0.74rem">{r["reason"][:100]}</span>
-                <div style="margin-top:4px;background:#22222e;border-radius:3px;height:3px">
-                    <div style="width:{vs}%;background:{vc};height:3px;border-radius:3px"></div>
-                </div>
-                {f'<div class="traj-upgrade">📈 Upgraded {traj["upgraded_date"]}: {traj["reason"][:80]}</div>' if traj else ""}
-            </div>"""
+            # Pre-compute ALL pieces — no nested quotes inside f-string expressions
+            sv, bc, bl = _sev(r["cls"])
+            cc  = _cc(r["cls"])
+            vs, vl = velocity_score(r)
+            vc  = "#c0392b" if vs >= 75 else "#d4830a" if vs >= 50 else "#27ae60"
+            src = r.get("source", "FDA")
+            src_cls = "src-fda" if src == "FDA" else "src-usda"
+            prod = r.get("product","")
+            firm = r.get("firm","")
+            reason = r.get("reason","")
+            date = r.get("date","")
+            prod_trunc  = (prod[:85] + "…") if len(prod) > 85 else prod
+            firm_trunc  = firm[:55]
+            reason_trunc = reason[:100]
+            upc_span    = "<span class='upc-badge'>🔵 UPC</span>" if r.get("all_upcs") else ""
+            traj        = get_trajectory(r)
+            traj_span   = "&nbsp;<span class='traj-badge'>📈 UPGRADED</span>" if traj and traj.get("upgrade_type") else ""
+            allergen    = r.get("allergen_trigger","")
+            alg_span    = f"&nbsp;<span class='allergen-badge'>🚨 allergen: {allergen}</span>" if allergen else ""
+            is_new      = _recall_hash(r) in new_recall_ids
+            new_span    = "&nbsp;<span style='background:#c0392b;color:white;font-size:0.66rem;padding:2px 7px;border-radius:10px;font-weight:bold'>🔴 NEW</span>" if is_new else ""
+            traj_detail = ""
+            if traj:
+                td = traj.get("upgraded_date","")
+                tr = traj.get("reason","")[:80]
+                traj_detail = f"<div class='traj-upgrade'>📈 Upgraded {td}: {tr}</div>"
+
+            return (
+                f"<div class='recall-card {cc}'>"
+                f"<div style='display:flex;align-items:center;gap:4px;flex-wrap:wrap'>"
+                f"<span class='badge {src_cls}'>{src}</span>&nbsp;"
+                f"<span class='badge {bc}'>{bl}</span>"
+                f"{upc_span}{traj_span}{alg_span}{new_span}"
+                f"<span style='font-size:0.64rem;color:#55556a;margin-left:auto'>{date}</span>"
+                f"</div>"
+                f"<strong style='color:#e8e8f0;font-size:0.86rem;display:block;margin:4px 0 2px'>{prod_trunc}</strong>"
+                f"<span style='color:#9090a8;font-size:0.76rem'>{firm_trunc}</span><br>"
+                f"<span style='color:#55556a;font-size:0.74rem'>{reason_trunc}</span>"
+                f"<div style='margin-top:4px;background:#22222e;border-radius:3px;height:3px'>"
+                f"<div style='width:{vs}%;background:{vc};height:3px;border-radius:3px'></div>"
+                f"</div>"
+                f"{traj_detail}"
+                f"</div>"
+            )
         with ft1:
             for r in [x for x in all_recalls if x["source"]=="FDA"][:10]:
                 st.markdown(render_r(r),unsafe_allow_html=True)
@@ -3123,7 +3196,7 @@ with tab9:
                 st.markdown(f"""<div class="timeline-event {cc}">
                     <div style="font-size:0.7rem;color:#55556a;font-family:monospace">{r["date"]} · {r["scope"]}</div>
                     <div style="font-size:0.86rem;font-weight:500;color:#e8e8f0">{r["product"]}</div>
-                    <span class="badge {bc}">{bl}</span>&nbsp;<span class="badge src-{"fda" if r["source"]=="FDA" else "usda"}">{r["source"]}</span>
+                    <span class="badge {bc}">{bl}</span>&nbsp;<span class="badge src-fda">{r["source"]}</span>
                     <div style="margin-top:6px;font-size:0.74rem;color:#9090a8">
                         {r["customers_matched"]:,} matched · {r["notifications_sent"]:,} notified · {r["returns_confirmed"]:,} returned
                     </div>
@@ -3308,7 +3381,8 @@ with tab10:
 
                 # Live preview in an expander
                 with st.expander("👁️ Preview report in browser"):
-                    st.components.v1.html(report_html, height=700, scrolling=True)
+                    import streamlit.components.v1 as stc
+                    stc.html(report_html, height=700, scrolling=True)
 
         else:
             # Placeholder before generation
