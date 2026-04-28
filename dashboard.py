@@ -1389,6 +1389,232 @@ except Exception as _db_err:
     pass  # Non-fatal — app works without persistence, degrades gracefully
 
 # ═══════════════════════════════════════════════
+# REAL NOTIFICATION ENGINE
+# Twilio SMS + SendGrid Email
+#
+# Credentials loaded from Streamlit secrets —
+# never hardcoded, never in GitHub.
+# Degrades gracefully if credentials not set:
+#   - Missing Twilio → SMS skipped, logged
+#   - Missing SendGrid → email skipped, logged
+#   - Both missing → simulated send (demo mode)
+# ═══════════════════════════════════════════════
+
+def _load_secrets():
+    """
+    Load credentials from Streamlit secrets.
+    Returns dict with all keys — missing ones are None.
+    Safe to call on every notification attempt.
+    """
+    try:
+        return {
+            "twilio_sid":   st.secrets.get("TWILIO_ACCOUNT_SID"),
+            "twilio_token": st.secrets.get("TWILIO_AUTH_TOKEN"),
+            "twilio_phone": st.secrets.get("TWILIO_PHONE"),
+            "sg_key":       st.secrets.get("SENDGRID_API_KEY"),
+            "sg_from":      st.secrets.get("SENDGRID_FROM_EMAIL"),
+        }
+    except Exception:
+        return {"twilio_sid":None,"twilio_token":None,
+                "twilio_phone":None,"sg_key":None,"sg_from":None}
+
+
+def _build_sms_body(match):
+    """Build a concise SMS alert — keep under 160 chars for single segment."""
+    first    = match["customer"]["name"].split()[0]
+    product  = match["recall"]["product"][:60]
+    cls      = match["recall"].get("cls","")
+    urgency  = "URGENT: discard immediately." if "Class I" in cls and "II" not in cls else "Please return at your convenience."
+    allergen = match.get("allergen_name")
+    if allergen:
+        msg = f"NOSHGUARD ALLERGEN ALERT: {first}, a product you bought contains recalled {allergen}. {product[:40]}. Do NOT consume. Call your doctor if exposed."
+    else:
+        msg = f"NOSHGUARD RECALL ALERT: {first}, {product} has been recalled. {urgency} Reply STOP to opt out."
+    return msg[:320]  # Twilio max for trial
+
+
+def _build_email_html(match):
+    """Build a clean HTML email body."""
+    name     = match["customer"]["name"]
+    first    = name.split()[0]
+    store    = match["customer"]["store"].split("–")[0].strip()
+    date     = match["customer"]["date"]
+    product  = match["recall"]["product"]
+    reason   = match["recall"]["reason"]
+    cls      = match["recall"].get("cls","")
+    firm     = match["recall"].get("firm","")
+    urgency  = _urgency(cls, match.get("allergen_name"))
+    channels = _channels(cls, match.get("allergen_triggered", False))
+    mt       = match.get("match_type","")
+    conf     = match.get("score", 0)
+    allergen = match.get("allergen_name","")
+
+    allergen_block = ""
+    if allergen:
+        allergen_block = f"""
+        <div style="background:#fff0f5;border:2px solid #e91e8c;border-radius:8px;padding:16px;margin:16px 0">
+            <strong style="color:#e91e8c;font-size:16px">🚨 ALLERGEN ALERT</strong><br>
+            <span style="color:#7f1d4f">You have a known <strong>{allergen}</strong> allergy on file.
+            Do NOT consume this product. Seek medical advice if you have already consumed it.</span>
+        </div>"""
+
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
+        <div style="background:#1a1a18;padding:24px 32px;border-bottom:4px solid #c0392b">
+            <span style="color:#c0392b;font-size:22px;font-weight:bold;letter-spacing:2px">🛡️ NOSHGUARD</span>
+            <div style="color:#9090a8;font-size:12px;margin-top:4px">Food Recall Alert System</div>
+        </div>
+        <div style="padding:32px">
+            <p style="font-size:16px;color:#1a1a18">Hi {first},</p>
+            <p style="color:#4a4a46;line-height:1.6">
+                A product you purchased on <strong>{date}</strong> at <strong>{store}</strong>
+                has been recalled by <strong>{firm}</strong>.
+            </p>
+            {allergen_block}
+            <div style="background:#f8f8f6;border-left:4px solid #c0392b;padding:16px;margin:20px 0;border-radius:0 8px 8px 0">
+                <div style="font-size:12px;color:#9090a8;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Recalled product</div>
+                <div style="font-size:16px;font-weight:bold;color:#1a1a18">{product}</div>
+                <div style="font-size:13px;color:#4a4a46;margin-top:6px"><strong>Reason:</strong> {reason}</div>
+                <div style="font-size:13px;color:#4a4a46;margin-top:4px"><strong>Severity:</strong> {cls}</div>
+            </div>
+            <div style="background:#{"fff0f0" if "Class I" in cls and "II" not in cls else "fffbeb"};
+                border-radius:8px;padding:16px;margin:20px 0;font-size:14px;
+                color:#{"7f1d1d" if "Class I" in cls and "II" not in cls else "78350f"}">
+                <strong>{urgency}</strong>
+            </div>
+            <p style="color:#4a4a46;font-size:13px;line-height:1.6">
+                This alert was generated with <strong>{conf}% match confidence</strong>
+                using NoshGuard's {mt} engine.
+                You are receiving this because your purchase history matched an active FDA/USDA recall.
+            </p>
+            <hr style="border:none;border-top:1px solid #e8e8e4;margin:24px 0">
+            <p style="color:#9090a8;font-size:11px;line-height:1.6">
+                NoshGuard · Food Recall Detection & Notification<br>
+                To unsubscribe from recall alerts, reply to this email with STOP.<br>
+                This alert was sent on behalf of {store}.
+            </p>
+        </div>
+    </div>"""
+
+
+def send_sms(to_phone: str, body: str, secrets: dict) -> dict:
+    """
+    Send SMS via Twilio.
+    Returns {"success": bool, "sid": str, "error": str}
+    """
+    if not all([secrets.get("twilio_sid"), secrets.get("twilio_token"), secrets.get("twilio_phone")]):
+        return {"success": False, "sid": None, "error": "Twilio credentials not configured"}
+    if not to_phone or len(to_phone) < 10:
+        return {"success": False, "sid": None, "error": "Invalid phone number"}
+
+    try:
+        from twilio.rest import Client
+        client  = Client(secrets["twilio_sid"], secrets["twilio_token"])
+        message = client.messages.create(
+            body  = body,
+            from_ = secrets["twilio_phone"],
+            to    = to_phone
+        )
+        return {"success": True, "sid": message.sid, "error": None}
+    except ImportError:
+        return {"success": False, "sid": None, "error": "twilio package not installed — add to requirements.txt"}
+    except Exception as e:
+        return {"success": False, "sid": None, "error": str(e)[:120]}
+
+
+def send_email(to_email: str, subject: str, html_body: str, secrets: dict) -> dict:
+    """
+    Send email via SendGrid.
+    Returns {"success": bool, "status": int, "error": str}
+    """
+    if not all([secrets.get("sg_key"), secrets.get("sg_from")]):
+        return {"success": False, "status": None, "error": "SendGrid credentials not configured"}
+    if not to_email or "@" not in to_email:
+        return {"success": False, "status": None, "error": "Invalid email address"}
+
+    try:
+        import urllib.request
+        import json as _json
+
+        payload = _json.dumps({
+            "personalizations": [{"to": [{"email": to_email}]}],
+            "from": {"email": secrets["sg_from"], "name": "NoshGuard Alerts"},
+            "subject": subject,
+            "content": [{"type": "text/html", "value": html_body}],
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            "https://api.sendgrid.com/v3/mail/send",
+            data    = payload,
+            headers = {
+                "Authorization": f"Bearer {secrets['sg_key']}",
+                "Content-Type":  "application/json",
+            },
+            method = "POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return {"success": resp.status in (200, 201, 202), "status": resp.status, "error": None}
+
+    except Exception as e:
+        err = str(e)
+        # Parse SendGrid error body if available
+        if hasattr(e, "read"):
+            try:
+                body = e.read().decode()
+                err  = _json.loads(body).get("errors",[{}])[0].get("message", err)
+            except:
+                pass
+        return {"success": False, "status": None, "error": err[:120]}
+
+
+def dispatch_alert(match: dict, secrets: dict, send_sms_flag=True, send_email_flag=True) -> dict:
+    """
+    Dispatch a full alert for one match.
+    Sends SMS + email based on recall severity and flags.
+    Returns result dict with per-channel outcomes.
+    """
+    c      = match["customer"]
+    r      = match["recall"]
+    cls    = r.get("cls","")
+    is_c1  = "Class I" in cls and "II" not in cls
+    is_alg = match.get("allergen_triggered", False)
+
+    # Build messages
+    sms_body   = _build_sms_body(match)
+    email_html = _build_email_html(match)
+    subject    = (
+        f"🚨 ALLERGEN ALERT — {c['name']} — {r['product'][:40]}"
+        if is_alg else
+        f"⚠️ Recall Alert — {r['product'][:50]}"
+    )
+
+    results = {"sms": None, "email": None, "simulated": False}
+
+    no_creds = not any([secrets.get("twilio_sid"), secrets.get("sg_key")])
+
+    if no_creds:
+        # Demo mode — simulate both channels
+        results["simulated"] = True
+        results["sms"]   = {"success": True, "sid": "SIMULATED", "error": None}
+        results["email"] = {"success": True, "status": 202, "error": None}
+        return results
+
+    # SMS — Class I and allergen alerts always get SMS
+    if send_sms_flag and (is_c1 or is_alg):
+        phone = c.get("phone","")
+        results["sms"] = send_sms(phone, sms_body, secrets)
+
+    # Email — all alerts get email
+    if send_email_flag:
+        email = c.get("email","")
+        results["email"] = send_email(email, subject, email_html, secrets)
+
+    return results
+
+
+
+
+# ═══════════════════════════════════════════════
 # REAL DATA INGESTION PIPELINE
 #
 # Accepts a CSV loyalty/POS export from any grocer.
@@ -2588,18 +2814,82 @@ with tab1:
 
             if unsent:
                 st.write(f"**{len(unsent)}** new alert(s) ready to send")
-                if st.button("🚀 Send Priority-Ordered Alerts",type="primary",use_container_width=True):
+
+                # Detect whether real credentials are configured
+                _secrets = _load_secrets()
+                _has_twilio = bool(_secrets.get("twilio_sid") and _secrets.get("twilio_token"))
+                _has_sg     = bool(_secrets.get("sg_key"))
+                _real_mode  = _has_twilio or _has_sg
+
+                if _real_mode:
+                    st.success(
+                        f"{'📱 SMS (Twilio) · ' if _has_twilio else ''}{'📧 Email (SendGrid)' if _has_sg else ''} · Real notifications active"
+                    )
+                else:
+                    st.info("🟡 Demo mode — no credentials detected. Alerts will be simulated.")
+
+                if st.button("🚀 Send Priority-Ordered Alerts", type="primary", use_container_width=True):
                     sent_count = 0
-                    for m in unsent:
-                        sv,_,_=_sev(m["recall"]["cls"])
-                        is_a=m.get("allergen_triggered")
-                        cls_str="allergen-alert" if is_a else sv
-                        icon={"upc":"🔵","allergen":"🚨","ingredient":"🧪","taxonomy":"🌿"}.get(m["match_type"],"⚠️")
-                        st.markdown(f'<div class="alert-sent {cls_str}">{icon} P{m["priority"]} · {m["customer"]["name"]} → {_channels(m["recall"]["cls"],is_a)}<br><small>{m["recall"]["product"][:50]}</small></div>',unsafe_allow_html=True)
-                        # Record to DB — prevents future duplicates
+                    sms_ok = 0; sms_fail = 0
+                    email_ok = 0; email_fail = 0
+
+                    prog = st.progress(0, text="Dispatching alerts...")
+                    for idx, m in enumerate(unsent):
+                        sv,_,_  = _sev(m["recall"]["cls"])
+                        is_a    = m.get("allergen_triggered")
+                        cls_str = "allergen-alert" if is_a else sv
+                        icon    = {"upc":"🔵","allergen":"🚨","ingredient":"🧪","taxonomy":"🌿"}.get(m["match_type"],"⚠️")
+                        cname   = m["customer"]["name"]
+                        prod    = m["recall"]["product"][:50]
+
+                        # Dispatch real or simulated alert
+                        result = dispatch_alert(m, _secrets)
+
+                        # Count outcomes
+                        if result.get("sms"):
+                            if result["sms"]["success"]: sms_ok += 1
+                            else: sms_fail += 1
+                        if result.get("email"):
+                            if result["email"]["success"]: email_ok += 1
+                            else: email_fail += 1
+
+                        # Channel status indicators
+                        sms_status   = ""
+                        email_status = ""
+                        if result.get("sms"):
+                            sms_status = "📱✅" if result["sms"]["success"] else f"📱❌ {result['sms'].get('error','')[:30]}"
+                        if result.get("email"):
+                            email_status = "📧✅" if result["email"]["success"] else f"📧❌ {result['email'].get('error','')[:30]}"
+
+                        simulated = " · simulated" if result.get("simulated") else ""
+
+                        st.markdown(
+                            f"<div class='alert-sent {cls_str}'>"
+                            f"{icon} P{m['priority']} · <strong>{cname}</strong>"
+                            f"&nbsp;{sms_status}&nbsp;{email_status}{simulated}<br>"
+                            f"<small>{prod}</small>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
+
+                        # Record to DB
                         db_record_alert(m)
                         sent_count += 1
-                    st.success(f"✅ {sent_count} alert(s) dispatched and recorded · {allergen_alerts} allergen protocols triggered")
+                        prog.progress((idx+1)/len(unsent), text=f"Sent {idx+1} of {len(unsent)}...")
+
+                    prog.empty()
+
+                    # Summary
+                    if _real_mode:
+                        parts = []
+                        if sms_ok:   parts.append(f"📱 {sms_ok} SMS sent")
+                        if sms_fail: parts.append(f"📱 {sms_fail} SMS failed")
+                        if email_ok:   parts.append(f"📧 {email_ok} emails sent")
+                        if email_fail: parts.append(f"📧 {email_fail} emails failed")
+                        st.success(f"✅ {sent_count} alert(s) dispatched · {' · '.join(parts)}")
+                    else:
+                        st.success(f"✅ {sent_count} alert(s) simulated · Add Twilio/SendGrid secrets to activate real delivery")
+
             else:
                 st.info("✅ All current matches have already been notified.")
 
