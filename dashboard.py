@@ -3103,93 +3103,152 @@ with tab1:
                     {f'<div class="traj-upgrade" style="margin-top:4px">📈 {" · ".join(m["traj_reasons"][:2])}</div>' if m.get("traj_reasons") else ""}
                 </div>""",unsafe_allow_html=True)
 
-        non_blocked=[m for m in matches if not m["geo_blocked"]]
+        non_blocked = [m for m in matches if not m["geo_blocked"]]
         if non_blocked:
-            st.markdown("<br>",unsafe_allow_html=True)
-            # Check which haven't been alerted yet
-            unsent = db_get_unsent_matches(non_blocked)
+            st.markdown("<br>", unsafe_allow_html=True)
+            unsent       = db_get_unsent_matches(non_blocked)
             already_sent = len(non_blocked) - len(unsent)
 
             if already_sent > 0:
-                st.caption(f"ℹ️ {already_sent} alert(s) already sent in a previous session — skipped.")
+                st.caption(f"ℹ️ {already_sent} alert(s) already sent — skipped.")
 
             if unsent:
-                st.write(f"**{len(unsent)}** new alert(s) ready to send")
-
-                # Detect whether real credentials are configured
-                _secrets = _load_secrets()
+                _secrets   = _load_secrets()
                 _has_twilio = bool(_secrets.get("twilio_sid") and _secrets.get("twilio_token"))
                 _has_sg     = bool(_secrets.get("sg_key"))
                 _real_mode  = _has_twilio or _has_sg
 
-                if _real_mode:
-                    st.success(
-                        f"{'📱 SMS (Twilio) · ' if _has_twilio else ''}{'📧 Email (SendGrid)' if _has_sg else ''} · Real notifications active"
-                    )
-                else:
-                    st.info("🟡 Demo mode — no credentials detected. Alerts will be simulated.")
+                # ── HUMAN REVIEW QUEUE ──
+                st.markdown("**👁️ Review Queue — approve before sending**")
+                st.caption(
+                    f"{'📱 SMS + 📧 Email active' if _real_mode else '🟡 Simulated — add credentials to activate'} · "
+                    f"{len(unsent)} match(es) pending review"
+                )
 
-                if st.button("🚀 Send Priority-Ordered Alerts", type="primary", use_container_width=True):
-                    sent_count = 0
-                    sms_ok = 0; sms_fail = 0
-                    email_ok = 0; email_fail = 0
+                # Session state for approvals
+                if "ng_approvals" not in st.session_state:
+                    st.session_state["ng_approvals"] = {}
 
-                    prog = st.progress(0, text="Dispatching alerts...")
-                    for idx, m in enumerate(unsent):
-                        sv,_,_  = _sev(m["recall"]["cls"])
-                        is_a    = m.get("allergen_triggered")
-                        cls_str = "allergen-alert" if is_a else sv
-                        icon    = {"upc":"🔵","allergen":"🚨","ingredient":"🧪","taxonomy":"🌿"}.get(m["match_type"],"⚠️")
-                        cname   = m["customer"]["name"]
-                        prod    = m["recall"]["product"][:50]
+                # Bulk controls
+                bc1, bc2 = st.columns(2)
+                with bc1:
+                    if st.button("✅ Approve All", use_container_width=True):
+                        for m in unsent:
+                            st.session_state["ng_approvals"][m["customer"]["id"] + "|" + m["recall"].get("cluster_id","x")] = True
+                        st.rerun()
+                with bc2:
+                    if st.button("❌ Reject All", use_container_width=True):
+                        for m in unsent:
+                            st.session_state["ng_approvals"][m["customer"]["id"] + "|" + m["recall"].get("cluster_id","x")] = False
+                        st.rerun()
 
-                        # Dispatch real or simulated alert
-                        result = dispatch_alert(m, _secrets)
+                st.markdown("<br>", unsafe_allow_html=True)
 
-                        # Count outcomes
-                        if result.get("sms"):
-                            if result["sms"]["success"]: sms_ok += 1
-                            else: sms_fail += 1
-                        if result.get("email"):
-                            if result["email"]["success"]: email_ok += 1
-                            else: email_fail += 1
+                # Individual match review cards
+                approved_matches = []
+                for m in unsent:
+                    sv, bc, bl  = _sev(m["recall"]["cls"])
+                    is_a        = m.get("allergen_triggered")
+                    icon        = {"upc":"🔵","allergen":"🚨","ingredient":"🧪","taxonomy":"🌿"}.get(m["match_type"],"⚠️")
+                    card_color  = "#1a0010" if is_a else {"sev1":"#1a0808","sev2":"#1a1208","sev3":"#081a0c"}.get(sv,"#13131a")
+                    border_color= "#e91e8c" if is_a else {"sev1":"#c0392b","sev2":"#d4830a","sev3":"#27ae60"}.get(sv,"#22222e")
+                    name_color  = "#e91e8c" if is_a else {"sev1":"#c0392b","sev2":"#d4830a","sev3":"#27ae60"}.get(sv,"#e8e8f0")
+                    approve_key = m["customer"]["id"] + "|" + m["recall"].get("cluster_id","x")
+                    is_approved = st.session_state["ng_approvals"].get(approve_key, None)
 
-                        # Channel status indicators
-                        sms_status   = ""
-                        email_status = ""
-                        if result.get("sms"):
-                            sms_status = "📱✅" if result["sms"]["success"] else f"📱❌ {result['sms'].get('error','')[:30]}"
-                        if result.get("email"):
-                            email_status = "📧✅" if result["email"]["success"] else f"📧❌ {result['email'].get('error','')[:30]}"
+                    col_card, col_toggle = st.columns([4, 1])
 
-                        simulated = " · simulated" if result.get("simulated") else ""
-
+                    with col_card:
                         st.markdown(
-                            f"<div class='alert-sent {cls_str}'>"
-                            f"{icon} P{m['priority']} · <strong>{cname}</strong>"
-                            f"&nbsp;{sms_status}&nbsp;{email_status}{simulated}<br>"
-                            f"<small>{prod}</small>"
+                            f"<div style='background:{card_color};border:1px solid {border_color};"
+                            f"border-radius:8px;padding:0.75rem 1rem;margin-bottom:4px'>"
+                            f"<div style='display:flex;justify-content:space-between;align-items:center'>"
+                            f"<strong style='color:{name_color}'>{icon} {m['customer']['name']}</strong>"
+                            f"<span style='font-size:0.7rem;color:#55556a'>P{m['priority']} · {m['decayed_score']}% confidence</span>"
+                            f"</div>"
+                            f"<div style='font-size:0.78rem;color:#9090a8;margin-top:3px'>"
+                            f"{m['recall']['product'][:60]}{'…' if len(m['recall']['product'])>60 else ''}"
+                            f"</div>"
+                            f"<div style='font-size:0.72rem;color:#55556a;margin-top:2px'>"
+                            f"{bl} · {icon} {m['match_type']} · "
+                            f"{'🚨 ALLERGEN ' if is_a else ''}"
+                            f"{_channels(m['recall']['cls'], is_a)}"
+                            f"</div>"
                             f"</div>",
                             unsafe_allow_html=True
                         )
 
-                        # Record to DB
-                        db_record_alert(m)
-                        sent_count += 1
-                        prog.progress((idx+1)/len(unsent), text=f"Sent {idx+1} of {len(unsent)}...")
+                    with col_toggle:
+                        st.markdown("<div style='padding-top:8px'>", unsafe_allow_html=True)
+                        approved = st.checkbox(
+                            "Send",
+                            value=is_approved if is_approved is not None else (True if is_a else False),
+                            key=f"approve_{approve_key}",
+                        )
+                        st.session_state["ng_approvals"][approve_key] = approved
+                        if approved:
+                            approved_matches.append(m)
+                        st.markdown("</div>", unsafe_allow_html=True)
 
-                    prog.empty()
+                # Send approved alerts
+                st.markdown("<br>", unsafe_allow_html=True)
+                approved_count = len(approved_matches)
 
-                    # Summary
-                    if _real_mode:
+                if approved_count == 0:
+                    st.info("Check the boxes next to the alerts you want to send, then click Send.")
+                else:
+                    st.write(f"**{approved_count}** alert(s) approved and ready to send")
+                    if st.button(
+                        f"🚀 Send {approved_count} Approved Alert{'s' if approved_count != 1 else ''}",
+                        type="primary",
+                        use_container_width=True
+                    ):
+                        sent_count  = 0
+                        sms_ok      = 0; sms_fail   = 0
+                        email_ok    = 0; email_fail  = 0
+                        prog = st.progress(0, text="Dispatching approved alerts...")
+
+                        for idx, m in enumerate(approved_matches):
+                            sv,_,_  = _sev(m["recall"]["cls"])
+                            is_a    = m.get("allergen_triggered")
+                            cls_str = "allergen-alert" if is_a else sv
+                            icon    = {"upc":"🔵","allergen":"🚨","ingredient":"🧪","taxonomy":"🌿"}.get(m["match_type"],"⚠️")
+                            result  = dispatch_alert(m, _secrets)
+
+                            if result.get("sms"):
+                                if result["sms"]["success"]: sms_ok += 1
+                                else: sms_fail += 1
+                            if result.get("email"):
+                                if result["email"]["success"]: email_ok += 1
+                                else: email_fail += 1
+
+                            sms_s   = "📱✅" if result.get("sms",{}).get("success") else ("📱❌" if result.get("sms") else "")
+                            email_s = "📧✅" if result.get("email",{}).get("success") else ("📧❌" if result.get("email") else "")
+                            sim     = " · simulated" if result.get("simulated") else ""
+
+                            st.markdown(
+                                f"<div class='alert-sent {cls_str}'>"
+                                f"{icon} P{m['priority']} · <strong>{m['customer']['name']}</strong>"
+                                f"&nbsp;{sms_s}&nbsp;{email_s}{sim}<br>"
+                                f"<small>{m['recall']['product'][:50]}</small>"
+                                f"</div>",
+                                unsafe_allow_html=True
+                            )
+                            db_record_alert(m)
+                            sent_count += 1
+                            prog.progress((idx+1)/len(approved_matches), text=f"Sent {idx+1} of {len(approved_matches)}...")
+
+                        prog.empty()
+                        # Clear approvals after send
+                        st.session_state["ng_approvals"] = {}
+
                         parts = []
-                        if sms_ok:   parts.append(f"📱 {sms_ok} SMS sent")
-                        if sms_fail: parts.append(f"📱 {sms_fail} SMS failed")
-                        if email_ok:   parts.append(f"📧 {email_ok} emails sent")
-                        if email_fail: parts.append(f"📧 {email_fail} emails failed")
-                        st.success(f"✅ {sent_count} alert(s) dispatched · {' · '.join(parts)}")
-                    else:
-                        st.success(f"✅ {sent_count} alert(s) simulated · Add Twilio/SendGrid secrets to activate real delivery")
+                        if sms_ok:    parts.append(f"📱 {sms_ok} SMS sent")
+                        if sms_fail:  parts.append(f"📱 {sms_fail} SMS failed")
+                        if email_ok:  parts.append(f"📧 {email_ok} emails sent")
+                        if email_fail:parts.append(f"📧 {email_fail} emails failed")
+                        label = " · ".join(parts) if parts else "simulated"
+                        st.success(f"✅ {sent_count} alert(s) dispatched · {label}")
 
             else:
                 st.info("✅ All current matches have already been notified.")
