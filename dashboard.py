@@ -4222,99 +4222,190 @@ with tab9:
     st.markdown("<br>",unsafe_allow_html=True)
 
     db_stats    = db_get_stats()
-    alert_hist  = db_get_alert_history(limit=50)
-    poll_hist   = db_get_poll_history(limit=20)
+    alert_hist  = db_get_alert_history(limit=100)
+    poll_hist   = db_get_poll_history(limit=50)
 
-    # ── DB STATS ROW ──
+    # ── ENRICHED STATS (live session + DB) ──
+    live_alert_count   = len([m for m in matches if not m.get("geo_blocked")])
+    live_recall_count  = len(all_recalls)
+    total_alerts_disp  = max(db_stats["total_alerts"], len(alert_hist))
+    total_recalls_disp = max(db_stats["unique_recalls"], live_recall_count)
+    total_polls_disp   = max(db_stats["total_polls"], len(poll_hist), poll_count)
+    total_custs_disp   = max(db_stats["unique_customers"], len(set(m["customer"]["id"] for m in matches)))
+
     mc1,mc2,mc3,mc4 = st.columns(4)
-    with mc1: st.metric("Total alerts sent",    f"{db_stats['total_alerts']:,}")
-    with mc2: st.metric("Unique customers",      f"{db_stats['unique_customers']:,}")
-    with mc3: st.metric("Recalls tracked in DB", f"{db_stats['unique_recalls']:,}")
-    with mc4: st.metric("Engine polls logged",   f"{db_stats['total_polls']:,}")
+    with mc1: st.metric("Alerts dispatched",   f"{total_alerts_disp:,}")
+    with mc2: st.metric("Customers alerted",   f"{total_custs_disp:,}")
+    with mc3: st.metric("Recalls monitored",   f"{total_recalls_disp:,}")
+    with mc4: st.metric("Engine polls",        f"{total_polls_disp:,}")
 
     st.markdown("<br>",unsafe_allow_html=True)
 
-    h_left, h_right = st.columns(2)
+    # ── TABS WITHIN HISTORY ──
+    ht1, ht2, ht3 = st.tabs(["📬 Alert Log", "⚡ Poll Log", "📊 Export"])
 
     # ── ALERT LOG ──
-    with h_left:
-        st.markdown("**📬 Alert log (most recent first)**")
+    with ht1:
         if not alert_hist:
-            st.info("No alerts sent yet — hit 'Send Priority-Ordered Alerts' in the Dashboard tab to record your first alert.")
-            st.caption("Demo fallback: showing simulated history below")
-            # Show simulated history as fallback
-            for r in list(reversed(RECALL_HISTORY))[:4]:
-                sv,bc,bl=_sev(r["cls"])
-                cc={"Class I – High":"t1","Class II – Mod":"t2","Class III – Low":"t3"}.get(bl,"t3")
-                st.markdown(f"""<div class="timeline-event {cc}">
-                    <div style="font-size:0.7rem;color:#55556a;font-family:monospace">{r["date"]} · {r["scope"]}</div>
-                    <div style="font-size:0.86rem;font-weight:500;color:#e8e8f0">{r["product"]}</div>
-                    <span class="badge {bc}">{bl}</span>&nbsp;<span class="badge src-fda">{r["source"]}</span>
-                    <div style="margin-top:6px;font-size:0.74rem;color:#9090a8">
-                        {r["customers_matched"]:,} matched · {r["notifications_sent"]:,} notified · {r["returns_confirmed"]:,} returned
-                    </div>
-                </div>""",unsafe_allow_html=True)
-        else:
-            for a in alert_hist:
-                sv,bc,bl=_sev(a.get("recall_cls",""))
-                cc={"Class I – High":"t1","Class II – Mod":"t2","Class III – Low":"t3"}.get(bl,"t3")
-                mt=a.get("match_type","")
-                icon={"upc":"🔵","allergen":"🚨","ingredient":"🧪","taxonomy":"🌿","keyword":"⚠️"}.get(mt,"⚠️")
-                sent_dt=a.get("sent_at","")
-                try:
-                    sent_fmt=datetime.fromisoformat(sent_dt).strftime("%b %d %I:%M %p")
-                except:
-                    sent_fmt=sent_dt[:16]
-                st.markdown(f"""<div class="timeline-event {cc}">
-                    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
-                        <div>
-                            <span style="font-size:0.76rem;font-weight:500;color:#e8e8f0">{icon} {a["customer_name"]}</span>
-                            &nbsp;<span class="badge {bc}">{bl}</span>
+            # Live session matches as preview
+            st.info("No alerts formally dispatched yet. Showing current session matches as preview.")
+            st.caption("Use the human review queue in the Dashboard tab to approve and send alerts — they'll appear here permanently.")
+            if matches:
+                for m in matches[:10]:
+                    sv,bc,bl = _sev(m["recall"]["cls"])
+                    cc = {"Class I – High":"t1","Class II – Mod":"t2","Class III – Low":"t3"}.get(bl,"t3")
+                    icon = {"upc":"🔵","allergen":"🚨","ingredient":"🧪","taxonomy":"🌿","keyword":"⚠️"}.get(m["match_type"],"⚠️")
+                    st.markdown(f"""<div class="timeline-event {cc}">
+                        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
+                            <div>
+                                <span style="font-size:0.76rem;font-weight:500;color:#e8e8f0">{icon} {m["customer"]["name"]}</span>
+                                &nbsp;<span class="badge {bc}">{bl}</span>
+                                <span style="font-size:0.64rem;color:#55556a;margin-left:6px">PENDING APPROVAL</span>
+                            </div>
+                            <span style="font-size:0.68rem;color:#55556a">P{m["priority"]} · {m["decayed_score"]}%</span>
                         </div>
-                        <span style="font-size:0.68rem;color:#55556a;font-family:monospace">{sent_fmt}</span>
-                    </div>
-                    <div style="font-size:0.76rem;color:#9090a8;margin-top:3px">{a["recall_product"][:65]}{"…" if len(a["recall_product"])>65 else ""}</div>
-                    <div style="font-size:0.7rem;color:#55556a;margin-top:2px">
-                        {a.get("channel","")[:50]} · score: {a.get("match_score",0)}% · P{a.get("priority",0)}
-                    </div>
-                </div>""",unsafe_allow_html=True)
+                        <div style="font-size:0.76rem;color:#9090a8;margin-top:3px">{m["recall"]["product"][:65]}</div>
+                        <div style="font-size:0.7rem;color:#55556a;margin-top:2px">
+                            {_channels(m["recall"]["cls"],m.get("allergen_triggered",False))}
+                        </div>
+                    </div>""",unsafe_allow_html=True)
+        else:
+            # Group by date
+            from collections import defaultdict
+            by_date = defaultdict(list)
+            for a in alert_hist:
+                try:
+                    d = datetime.fromisoformat(a["sent_at"]).strftime("%B %d, %Y")
+                except:
+                    d = "Unknown date"
+                by_date[d].append(a)
+
+            for date_label, day_alerts in list(by_date.items())[:10]:
+                st.markdown(f"<div style='font-size:0.68rem;color:#55556a;font-family:monospace;margin:12px 0 4px;text-transform:uppercase;letter-spacing:1px'>{date_label} · {len(day_alerts)} alert(s)</div>", unsafe_allow_html=True)
+                for a in day_alerts:
+                    sv,bc,bl = _sev(a.get("recall_cls",""))
+                    cc = {"Class I – High":"t1","Class II – Mod":"t2","Class III – Low":"t3"}.get(bl,"t3")
+                    mt = a.get("match_type","")
+                    icon = {"upc":"🔵","allergen":"🚨","ingredient":"🧪","taxonomy":"🌿","keyword":"⚠️"}.get(mt,"⚠️")
+                    try:
+                        sent_fmt = datetime.fromisoformat(a["sent_at"]).strftime("%I:%M %p")
+                    except:
+                        sent_fmt = ""
+                    st.markdown(f"""<div class="timeline-event {cc}" style="margin-bottom:4px">
+                        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
+                            <div>
+                                <span style="font-size:0.78rem;font-weight:500;color:#e8e8f0">{icon} {a["customer_name"]}</span>
+                                &nbsp;<span class="badge {bc}">{bl}</span>
+                            </div>
+                            <span style="font-size:0.68rem;color:#55556a;font-family:monospace">{sent_fmt}</span>
+                        </div>
+                        <div style="font-size:0.78rem;color:#9090a8;margin-top:3px">{a["recall_product"][:70]}{"…" if len(a["recall_product"])>70 else ""}</div>
+                        <div style="font-size:0.7rem;color:#55556a;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap">
+                            <span>{a.get("channel","")[:40]}</span>
+                            <span>Confidence: {a.get("match_score",0)}%</span>
+                            <span>Priority: P{a.get("priority",0)}</span>
+                            <span>Match: {mt}</span>
+                        </div>
+                    </div>""",unsafe_allow_html=True)
+
+            if len(alert_hist) >= 100:
+                st.caption("Showing most recent 100 alerts. Full history in noshguard.db.")
 
     # ── POLL LOG ──
-    with h_right:
-        st.markdown("**⚡ Engine poll log**")
+    with ht2:
         if not poll_hist:
-            st.info("No polls logged yet — polls are recorded automatically every 15 minutes.")
-            total_n=sum(r["notifications_sent"] for r in RECALL_HISTORY)
-            total_r=sum(r["returns_confirmed"] for r in RECALL_HISTORY)
-            avg_o=sum(r["open_rate"] for r in RECALL_HISTORY)/len(RECALL_HISTORY)
-            avg_t=sum(r["time_to_notify_min"] for r in RECALL_HISTORY)/len(RECALL_HISTORY)
-            st.caption(f"Simulated baseline: {total_n:,} total alerts · {avg_o*100:.0f}% avg open rate · {avg_t:.1f} min avg notify time")
+            st.info("Poll history builds up automatically — one entry every 15 minutes.")
+            st.caption("Each poll checks FDA for new recalls and runs the matching engine. Come back in 15 minutes to see your first entry.")
         else:
+            # Summary stats from poll history
+            total_new_recalls = sum(p.get("new_recalls",0) for p in poll_hist)
+            avg_ms = int(sum(p.get("engine_ms",0) for p in poll_hist if p.get("engine_ms",0)) /
+                        max(1, sum(1 for p in poll_hist if p.get("engine_ms",0))))
+            error_polls = sum(1 for p in poll_hist if p.get("error"))
+
+            ps1,ps2,ps3,ps4 = st.columns(4)
+            with ps1: st.metric("Polls logged",     len(poll_hist))
+            with ps2: st.metric("New recalls found", total_new_recalls)
+            with ps3: st.metric("Avg engine time",  f"{avg_ms}ms")
+            with ps4: st.metric("Errors",           error_polls,
+                                delta=f"{error_polls} issues" if error_polls else "Clean",
+                                delta_color="inverse")
+
+            st.markdown("<br>", unsafe_allow_html=True)
             for p in poll_hist:
-                polled_dt=p.get("polled_at","")
                 try:
-                    polled_fmt=datetime.fromisoformat(polled_dt).strftime("%b %d %I:%M:%S %p")
+                    polled_fmt = datetime.fromisoformat(p["polled_at"]).strftime("%b %d %I:%M:%S %p")
                 except:
-                    polled_fmt=polled_dt[:19]
-                new_r=p.get("new_recalls",0)
-                err=p.get("error")
-                fda_icon="🟢" if p.get("fda_live") else "🟡"
-                st.markdown(f"""<div class="loyalty-card" style="padding:0.6rem 0.85rem;margin-bottom:5px">
+                    polled_fmt = p.get("polled_at","")[:19]
+                new_r   = p.get("new_recalls",0)
+                err     = p.get("error")
+                fda_icon = "🟢" if p.get("fda_live") else "🟡"
+                ms      = p.get("engine_ms",0)
+                ms_color = "#27ae60" if ms < 200 else "#d4830a" if ms < 1000 else "#c0392b"
+                st.markdown(f"""<div class="loyalty-card" style="padding:0.55rem 0.85rem;margin-bottom:4px">
                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
                         <div>
                             <span style="font-size:0.76rem;color:#e8e8f0">{fda_icon} {polled_fmt}</span>
                             {"&nbsp;<span style='background:#c0392b;color:white;font-size:0.62rem;padding:1px 6px;border-radius:8px'>"+str(new_r)+" NEW</span>" if new_r else ""}
+                            {"&nbsp;<span style='color:#c0392b;font-size:0.68rem'>⚠️ error</span>" if err else ""}
                         </div>
-                        <span style="font-size:0.68rem;color:#55556a">{p.get("engine_ms",0):.0f}ms</span>
+                        <span style="font-size:0.72rem;font-weight:500;color:{ms_color}">{ms:.0f}ms</span>
                     </div>
-                    <div style="font-size:0.72rem;color:#9090a8;margin-top:3px">
-                        {p["recalls_found"]} recalls · {p["matches_found"]} matches · {p["alerts_dispatched"]} alerts sent
-                        {"&nbsp;·&nbsp;<span style='color:#c0392b'>⚠️ "+err[:40]+"</span>" if err else ""}
+                    <div style="font-size:0.7rem;color:#55556a;margin-top:2px">
+                        {p.get("recalls_found",0)} recalls checked · {p.get("matches_found",0)} matches · {p.get("alerts_dispatched",0)} alerts sent
+                        {" · <span style='color:#c0392b'>"+err[:50]+"</span>" if err else ""}
                     </div>
                 </div>""",unsafe_allow_html=True)
 
-    st.markdown("<br>",unsafe_allow_html=True)
-    st.caption("🗄️ Data persisted in noshguard.db (SQLite) · Survives app restarts · Exportable as CSV for grocer quarterly reviews")
+    # ── EXPORT ──
+    with ht3:
+        st.markdown("**Export audit trail as CSV**")
+        st.caption("Download your alert history and poll log for grocer quarterly reviews or compliance records.")
+
+        if alert_hist:
+            import csv as _csv
+            import io as _io
+            alert_csv = _io.StringIO()
+            writer = _csv.DictWriter(alert_csv, fieldnames=[
+                "sent_at","customer_name","recall_product","recall_cls",
+                "match_type","match_score","priority","channel"
+            ])
+            writer.writeheader()
+            for a in alert_hist:
+                writer.writerow({k: a.get(k,"") for k in writer.fieldnames})
+            st.download_button(
+                "⬇️ Download alert_history.csv",
+                data=alert_csv.getvalue(),
+                file_name=f"noshguard_alert_history_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        else:
+            st.info("No alerts to export yet.")
+
+        if poll_hist:
+            import csv as _csv2
+            import io as _io2
+            poll_csv = _io2.StringIO()
+            writer2  = _csv2.DictWriter(poll_csv, fieldnames=[
+                "polled_at","recalls_found","new_recalls","matches_found",
+                "alerts_dispatched","engine_ms","fda_live","error"
+            ])
+            writer2.writeheader()
+            for p in poll_hist:
+                writer2.writerow({k: p.get(k,"") for k in writer2.fieldnames})
+            st.download_button(
+                "⬇️ Download poll_log.csv",
+                data=poll_csv.getvalue(),
+                file_name=f"noshguard_poll_log_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        else:
+            st.info("No poll history to export yet.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.caption("🗄️ All data persisted in noshguard.db (SQLite) · Survives restarts · Full history retained indefinitely")
 
 
 # ══════════════════════════════════════
