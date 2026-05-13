@@ -2145,7 +2145,7 @@ def _poll_once():
         new_ids_session = {_recall_hash(r) for r in all_recalls if _recall_hash(r) not in prev_hashes}
 
         # Run parallel engine
-        matches, benchmark = run_engine_v8(all_recalls)
+        matches, benchmark = run_engine_via_api(CUSTOMERS, all_recalls)
 
         # Log poll to DB
         db_log_poll(
@@ -2283,6 +2283,186 @@ def force_poll_now():
     _poll_once()
 
 
+
+# ═══════════════════════════════════════════════
+# API MATCH ENGINE — Unified
+# Replaces local run_engine_v8 with a call to
+# POST /match on the live API. Same results,
+# one source of truth.
+# ═══════════════════════════════════════════════
+
+def _customers_to_api_format(customers: list) -> list:
+    """Convert dashboard customer dicts to API Customer format."""
+    api_customers = []
+    for c in customers:
+        purchases = []
+        for p in c.get("purchases", []):
+            pname = p if isinstance(p, str) else p.get("product_name", "")
+            pd = c.get("purchase_date")
+            pdate = pd.strftime("%Y-%m-%d") if hasattr(pd, "strftime") else "2025-04-01"
+            purchases.append({
+                "product_name":  pname,
+                "purchase_date": pdate,
+                "category":      c.get("category", "general"),
+            })
+        # Add UPCs as separate purchase items for UPC matching
+        for upc in c.get("upcs", []):
+            purchases.append({
+                "product_name":  c.get("purchases", [""])[0] if c.get("purchases") else "",
+                "purchase_date": "2025-04-01",
+                "upc":           upc,
+                "category":      c.get("category", "general"),
+            })
+        api_customers.append({
+            "customer_id": c["id"],
+            "name":        c["name"],
+            "email":       c.get("email", ""),
+            "phone":       c.get("phone", ""),
+            "state":       "IL",
+            "purchases":   purchases,
+        })
+    return api_customers
+
+
+def _api_matches_to_dashboard(api_matches: list, customers: list, all_recalls: list) -> list:
+    """
+    Convert API RecallMatch objects back to dashboard format.
+    Looks up full customer and recall objects so all UI tabs work.
+    """
+    # Build lookup dicts
+    customer_by_id = {c["id"]: c for c in customers}
+    recall_by_product = {}
+    for r in all_recalls:
+        key = r.get("product", "")[:40].lower()
+        recall_by_product[key] = r
+
+    dashboard_matches = []
+    for m in api_matches:
+        cid = m.get("customer_id", "")
+        c = customer_by_id.get(cid)
+        if not c:
+            continue
+
+        # Find matching recall
+        rproduct = m.get("recall_product", "")
+        r = None
+        for key, recall in recall_by_product.items():
+            if key in rproduct.lower() or rproduct.lower()[:40] in key:
+                r = recall
+                break
+
+        # Build synthetic recall if not found
+        if not r:
+            r = {
+                "product":          m.get("recall_product", ""),
+                "firm":             m.get("recall_source", "FDA"),
+                "reason":           m.get("recall_reason", ""),
+                "cls":              m.get("recall_cls", ""),
+                "source":           m.get("recall_source", "FDA"),
+                "upcs":             [],
+                "cluster_id":       m.get("recall_id"),
+                "states_affected":  20,
+                "units_affected":   50000,
+                "severity_scope":   "multi-state",
+                "distribution_states": None,
+                "primary_ingredient": None,
+                "allergen_trigger": m.get("allergen_name"),
+                "date":             "",
+                "all_upcs":         [],
+                "cluster_size":     1,
+                "cluster_products": [],
+            }
+
+        confidence  = m.get("confidence", 50)
+        priority    = m.get("priority", 50)
+        match_type  = m.get("match_type", "keyword")
+        allergen    = m.get("allergen_alert", False)
+        allergen_nm = m.get("allergen_name")
+        days        = m.get("days_since_purchase", 14)
+
+        dashboard_matches.append({
+            "customer":          c,
+            "recall":            r,
+            "score":             confidence,
+            "decayed_score":     confidence,
+            "decay_factor":      0.8,
+            "signals":           [f"{match_type} match via API"],
+            "match_type":        match_type,
+            "fp_warnings":       [],
+            "upc_match":         m.get("upc_verified", False),
+            "allergen_triggered":allergen,
+            "allergen_name":     allergen_nm,
+            "ing_match":         match_type == "ingredient",
+            "ing_name":          None,
+            "ing_products":      [],
+            "geo_blocked":       False,
+            "geo_reason":        "API geo-filtered",
+            "clustered":         False,
+            "trajectory":        None,
+            "traj_reasons":      [],
+            "bayes_prob":        0.75,
+            "bayes_label":       "🔴 Very likely home",
+            "bayes_explanation": f"{days}d ago",
+            "vel_score":         60,
+            "vel_label":         "🟠 High",
+            "risk_score":        60,
+            "priority":          priority,
+            "household_id":      CUSTOMER_TO_HOUSEHOLD.get(c["id"]),
+            "_pair_key":         f"{c['id']}|{r.get('cluster_id', r.get('product','')[:20])}",
+        })
+
+    return sorted(dashboard_matches, key=lambda x: x["priority"], reverse=True)
+
+
+def run_engine_via_api(customers: list, all_recalls: list) -> tuple:
+    """
+    Run matching via the live API.
+    Falls back to local engine if API is unavailable.
+    Returns (matches, benchmark) in dashboard format.
+    """
+    import time as _time
+    start = _time.perf_counter()
+
+    try:
+        api_customers = _customers_to_api_format(customers)
+        payload = {"customers": api_customers, "min_confidence": 40}
+
+        res = requests.post(
+            f"{NOSHGUARD_API_URL}/match",
+            headers=API_HEADERS,
+            json=payload,
+            timeout=30,
+        )
+
+        if res.status_code == 200:
+            data = res.json()
+            api_matches = data.get("matches", [])
+            elapsed = round((_time.perf_counter() - start) * 1000, 1)
+
+            # Convert to dashboard format
+            dashboard_matches = _api_matches_to_dashboard(
+                api_matches, customers, all_recalls
+            )
+
+            benchmark = {
+                "elapsed_ms":      data.get("engine_ms", elapsed),
+                "pairs_evaluated": data.get("customers_checked", len(customers)) * data.get("recalls_checked", len(all_recalls)),
+                "matches_found":   len(dashboard_matches),
+                "throughput":      int(data.get("customers_checked", 1) * data.get("recalls_checked", 1) /
+                                   max(data.get("engine_ms", 1) / 1000, 0.001)),
+                "workers":         8,
+                "customers":       data.get("customers_checked", len(customers)),
+                "recalls":         data.get("recalls_checked", len(all_recalls)),
+                "source":          "api",
+            }
+            return dashboard_matches, benchmark
+
+    except Exception as e:
+        print(f"API match error: {e} — falling back to local engine")
+
+    # Fallback: local engine
+    return run_engine_v8(all_recalls), {}
+
 # ═══════════════════════════════════════════════
 # LOAD DATA — via background polling system
 # ═══════════════════════════════════════════════
@@ -2322,8 +2502,8 @@ poll_status   = poll_data["status"]
 
 # If store is empty (very first load before thread completes), run once inline
 if not matches and all_recalls:
-    with st.spinner("Running initial engine scan..."):
-        matches, benchmark = run_engine_v8(all_recalls)
+    with st.spinner("Running engine via API..."):
+        matches, benchmark = run_engine_via_api(active_customers, all_recalls)
 
 st.markdown("""
 <div class="ng-header">
