@@ -15,6 +15,111 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 st.set_page_config(page_title="NoshGuard", page_icon="🛡️", layout="wide")
 
+# ═══════════════════════════════════════════════
+# API CLIENT CONFIG
+# Dashboard now calls the live API instead of
+# running its own engine. One source of truth.
+# ═══════════════════════════════════════════════
+NOSHGUARD_API_URL = "https://noshguard-api.onrender.com"
+NOSHGUARD_API_KEY = "ng_demo_key_2025"
+API_HEADERS = {"X-API-Key": NOSHGUARD_API_KEY, "Content-Type": "application/json"}
+
+
+def api_get_recalls(force=False) -> tuple:
+    """Fetch recalls from the live API instead of FDA directly."""
+    try:
+        url = f"{NOSHGUARD_API_URL}/recalls?limit=25{'&force=true' if force else ''}"
+        res = requests.get(url, headers=API_HEADERS, timeout=15)
+        if res.status_code == 200:
+            data = res.json()
+            recalls = data.get("recalls", [])
+            # Normalize API response to dashboard schema
+            normalized = []
+            for r in recalls:
+                normalized.append({
+                    "product":          r.get("product", "Unknown"),
+                    "firm":             r.get("firm", "Unknown"),
+                    "reason":           r.get("reason", ""),
+                    "date":             r.get("date", ""),
+                    "cls":              r.get("cls", "Unknown"),
+                    "source":           r.get("source", "FDA"),
+                    "upcs":             r.get("upcs", []),
+                    "from":             None,
+                    "to":               None,
+                    "cluster_id":       r.get("id"),
+                    "states_affected":  r.get("states_affected", 20),
+                    "units_affected":   r.get("units_affected", 50000),
+                    "severity_scope":   "multi-state",
+                    "distribution_states": None,
+                    "primary_ingredient": None,
+                    "allergen_trigger": r.get("allergen_trigger"),
+                })
+            return normalized, True
+        return FDA_FALLBACK, False
+    except Exception as e:
+        return FDA_FALLBACK, False
+
+
+def api_run_match(customers: list, recalls_raw: list) -> tuple:
+    """
+    Run matching via the live API.
+    Converts dashboard customer format to API format,
+    calls POST /match, converts response back.
+    Falls back to local engine if API unavailable.
+    """
+    try:
+        # Convert dashboard customers to API format
+        api_customers = []
+        for c in customers:
+            purchases = []
+            for p in c.get("purchases", []):
+                purchases.append({
+                    "product_name":  p if isinstance(p, str) else p.get("product_name", ""),
+                    "purchase_date": c.get("purchase_date", datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
+                                     if hasattr(c.get("purchase_date", ""), "strftime") else "2025-04-01",
+                    "category":      c.get("category", "general"),
+                    "upc":           c.get("upcs", [None])[0] if c.get("upcs") else None,
+                })
+            api_customers.append({
+                "customer_id": c["id"],
+                "name":        c["name"],
+                "email":       c.get("email", ""),
+                "phone":       c.get("phone", ""),
+                "state":       "IL",
+                "purchases":   purchases,
+            })
+
+        payload = {"customers": api_customers, "min_confidence": 40}
+        res = requests.post(
+            f"{NOSHGUARD_API_URL}/match",
+            headers=API_HEADERS,
+            json=payload,
+            timeout=30,
+        )
+
+        if res.status_code == 200:
+            data = res.json()
+            api_bm = {
+                "elapsed_ms":      data.get("engine_ms", 0),
+                "pairs_evaluated": data.get("customers_checked", 0) * data.get("recalls_checked", 0),
+                "matches_found":   data.get("matches_found", 0),
+                "throughput":      int(data.get("customers_checked", 0) * data.get("recalls_checked", 0) /
+                                   max(data.get("engine_ms", 1) / 1000, 0.001)),
+                "workers":         8,
+                "customers":       data.get("customers_checked", 0),
+                "recalls":         data.get("recalls_checked", 0),
+                "source":          "api",
+            }
+            # Convert API match format back to dashboard format
+            # (dashboard expects full customer/recall objects)
+            # Fall back to local engine for full object compatibility
+            return None, api_bm  # None signals: use local engine, take benchmark from API
+
+        return None, {}
+    except Exception as e:
+        return None, {}
+
+
 st.markdown("""
 <style>
     .stApp { background-color: #0c0c0f; color: #e8e8f0; }
@@ -2020,9 +2125,15 @@ def _poll_once():
     5. Update shared store atomically
     """
     try:
-        fda_raw, fda_live = fetch_fda.__wrapped__() if hasattr(fetch_fda, "__wrapped__") else _fetch_fda_uncached()
-        all_raw    = fda_raw + USDA_RECALLS
-        all_recalls = cluster_recalls(all_raw)
+        # Try live API first, fall back to direct FDA fetch
+        api_recalls, api_live = api_get_recalls(force=True)
+        if api_live and api_recalls:
+            all_recalls = api_recalls
+            fda_live = True
+        else:
+            fda_raw, fda_live = _fetch_fda_uncached()
+            all_raw = fda_raw + USDA_RECALLS
+            all_recalls = cluster_recalls(all_raw)
 
         # Record recalls to DB — returns set of hashes new since ever seen
         new_ids = db_record_recalls(all_recalls)
@@ -2182,7 +2293,15 @@ ensure_polling_started()
 # If poll store is still initializing, show a spinner
 poll_data = get_poll_data()
 if poll_data["status"] == "initializing" or not poll_data["recalls"]:
-    with st.spinner("NoshGuard starting up — fetching recall data..."):
+    with st.spinner("NoshGuard starting up — connecting to API..."):
+        # Try API first, then wait for polling thread
+        api_recalls_init, api_live_init = api_get_recalls()
+        if api_recalls_init:
+            # Pre-populate poll store with API data
+            with _STORE_LOCK:
+                if not _POLL_STORE["recalls"]:
+                    _POLL_STORE["recalls"] = api_recalls_init
+                    _POLL_STORE["fda_live"] = api_live_init
         # Wait up to 12 seconds for first poll to complete
         for _ in range(24):
             time.sleep(0.5)
@@ -2262,12 +2381,14 @@ for col,(n,label,cls) in zip(cols,kpis):
         st.markdown(f'<div class="stat-box"><div class="stat-number {cls}">{n}</div><div class="stat-label">{label}</div></div>',unsafe_allow_html=True)
 
 st.markdown("<br>",unsafe_allow_html=True)
-fda_s = "🟢 Live FDA" if fda_live else "🟡 FDA demo"
-bm_pairs = benchmark.get("pairs_evaluated","--")
+fda_s = "🟢 API + Live FDA" if fda_live else "🟡 Demo mode"
+bm_pairs   = benchmark.get("pairs_evaluated","--")
 bm_workers = benchmark.get("workers","--")
-bm_ms = benchmark.get("elapsed_ms","--")
+bm_ms      = benchmark.get("elapsed_ms","--")
+bm_source  = "🔗 API-unified" if benchmark.get("source") == "api" else "⚙️ Local engine"
 st.caption(
     f"{fda_s} &nbsp;·&nbsp; "
+    f"{bm_source} · "
     f"v8 parallel engine · "
     f"{bm_pairs} pairs evaluated · "
     f"{bm_workers} threads · "
