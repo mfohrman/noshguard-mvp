@@ -2995,8 +2995,116 @@ if data_mode == "real" and uploaded_customers:
     benchmark = benchmark_real
     hh_matches = get_household_matches(matches)
 
-tab1,tab2,tab3,tab4,tab5,tab6,tab7,tab8,tab9,tab10 = st.tabs([
-    "📊 Dashboard","📂 Upload Data","🚨 Allergen","🎯 Bayesian","📈 Trajectory",
+
+# ═══════════════════════════════════════════════
+# RECEIPT SCANNER
+# Uses Claude vision API to extract grocery items
+# from a receipt photo. Zero manual typing.
+# ═══════════════════════════════════════════════
+
+import base64
+
+def scan_receipt_with_claude(image_bytes: bytes, media_type: str) -> dict:
+    """
+    Send receipt image to Claude vision API.
+    Returns extracted grocery items as structured list.
+    """
+    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+
+    prompt = """You are a grocery receipt parser for a food safety app.
+
+Look at this receipt and extract ALL food/grocery items purchased.
+For each item return:
+- product_name: clean, readable name (not abbreviated)
+- category: one of: produce, meat, poultry, seafood, dairy, deli, frozen, pantry, beverage, bakery, snack
+
+Return ONLY a JSON array, no other text, no markdown, no explanation.
+Example format:
+[
+  {"product_name": "Dole Baby Spinach 5oz", "category": "produce"},
+  {"product_name": "Organic Whole Milk 1 gallon", "category": "dairy"}
+]
+
+If you cannot read the receipt clearly, return an empty array: []
+Only include food items — skip non-food items like paper towels, soap, etc."""
+
+    try:
+        res = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key":         st.secrets.get("ANTHROPIC_API_KEY",""),
+                "anthropic-version": "2023-06-01",
+                "content-type":      "application/json",
+            },
+            json={
+                "model":      "claude-opus-4-5",
+                "max_tokens": 1000,
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type":   "image",
+                            "source": {
+                                "type":       "base64",
+                                "media_type": media_type,
+                                "data":       image_b64,
+                            },
+                        },
+                        {"type": "text", "text": prompt},
+                    ],
+                }],
+            },
+            timeout=30,
+        )
+
+        if res.status_code == 200:
+            text = res.json()["content"][0]["text"].strip()
+            # Clean up any accidental markdown
+            text = text.replace("```json","").replace("```","").strip()
+            items = json.loads(text)
+            return {"success": True, "items": items, "error": None}
+        else:
+            return {"success": False, "items": [], "error": f"API error {res.status_code}"}
+
+    except json.JSONDecodeError as e:
+        return {"success": False, "items": [], "error": f"Could not parse response: {e}"}
+    except Exception as e:
+        return {"success": False, "items": [], "error": str(e)[:120]}
+
+
+def enroll_via_api(name: str, email: str, phone: str, zip_code: str,
+                   purchases: list, channels: list) -> dict:
+    """Call the live /enroll endpoint with extracted purchase data."""
+    try:
+        payload = {
+            "email":    email,
+            "name":     name,
+            "phone":    phone,
+            "zip_code": zip_code,
+            "purchases": [
+                {
+                    "product_name":  p["product_name"],
+                    "category":      p.get("category","general"),
+                    "purchase_date": datetime.now().strftime("%Y-%m-%d"),
+                }
+                for p in purchases
+            ],
+            "notification_channels": channels,
+        }
+        res = requests.post(
+            f"{NOSHGUARD_API_URL}/enroll",
+            headers=API_HEADERS,
+            json=payload,
+            timeout=15,
+        )
+        if res.status_code == 200:
+            return res.json()
+        return {"enrolled": False, "error": f"API returned {res.status_code}"}
+    except Exception as e:
+        return {"enrolled": False, "error": str(e)[:120]}
+
+tab1,tab2,tab3,tab4,tab5,tab6,tab7,tab8,tab9,tab10,tab11 = st.tabs([
+    "📊 Dashboard","📂 Upload Data","📷 Receipt Scan","🚨 Allergen","🎯 Bayesian","📈 Trajectory",
     "🏠 Households","🔬 Engine v8","⚡ Performance","📈 History","📄 Pilot Report"
 ])
 
@@ -3415,9 +3523,205 @@ with tab2:
 
 
 # ══════════════════════════════════════
-# TAB 3: ALLERGEN ENGINE
+
+
+# ══════════════════════════════════════
+# TAB 3: RECEIPT SCANNER
 # ══════════════════════════════════════
 with tab3:
+    st.subheader("📷 Receipt Scanner")
+    st.caption("Upload a photo of any grocery receipt — Claude reads it and enrolls you for recall alerts automatically.")
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    rc_left, rc_right = st.columns([2, 3])
+
+    with rc_left:
+        st.markdown("**Your details**")
+        rc_name  = st.text_input("Name",     value="Matt Fohrman",        key="rc_name")
+        rc_email = st.text_input("Email",    value="mfohrman@gmail.com",  key="rc_email")
+        rc_phone = st.text_input("Phone",    value="+18472548383",         key="rc_phone")
+        rc_zip   = st.text_input("Zip code", value="60089",               key="rc_zip")
+        rc_channels = st.multiselect(
+            "Notification channels",
+            options=["sms","email"],
+            default=["sms","email"],
+            key="rc_channels"
+        )
+
+        st.markdown("<br>**Upload receipt**", unsafe_allow_html=True)
+        rc_file = st.file_uploader(
+            "Receipt photo",
+            type=["jpg","jpeg","png","webp","pdf"],
+            help="Clear photo of the itemized receipt. Works with paper receipts, app screenshots, and email receipts.",
+            key="rc_uploader"
+        )
+
+        st.markdown("""<div style='background:#13131a;border:1px solid #22222e;border-radius:8px;
+            padding:0.75rem;font-size:0.78rem;color:#9090a8;margin-top:1rem;line-height:1.6'>
+            💡 <strong style='color:#e8e8f0'>Tips for best results:</strong><br>
+            · Lay receipt flat, good lighting<br>
+            · Full receipt in frame, not cropped<br>
+            · App/email screenshots work great<br>
+            · PDF receipts from Target/Walmart apps work too
+        </div>""", unsafe_allow_html=True)
+
+    with rc_right:
+        if rc_file is not None:
+            # Show image preview
+            if rc_file.type != "application/pdf":
+                st.image(rc_file, caption="Receipt preview", use_column_width=True)
+                rc_file.seek(0)
+
+            scan_btn = st.button("🔍 Scan Receipt with Claude", type="primary", use_container_width=True, key="rc_scan")
+
+            if scan_btn or "rc_scan_result" in st.session_state:
+                if scan_btn:
+                    # Check for API key
+                    has_anthropic_key = bool(st.secrets.get("ANTHROPIC_API_KEY",""))
+                    if not has_anthropic_key:
+                        st.error("⚠️ ANTHROPIC_API_KEY not set in Streamlit secrets. Add it to enable receipt scanning.")
+                        st.info("Go to share.streamlit.io → your app → Settings → Secrets → add: ANTHROPIC_API_KEY = 'your-key'")
+                    else:
+                        with st.spinner("Claude is reading your receipt..."):
+                            rc_file.seek(0)
+                            image_bytes = rc_file.read()
+                            media_type = rc_file.type if rc_file.type != "application/pdf" else "application/pdf"
+                            if media_type == "image/jpg":
+                                media_type = "image/jpeg"
+                            result = scan_receipt_with_claude(image_bytes, media_type)
+                            st.session_state["rc_scan_result"] = result
+
+                result = st.session_state.get("rc_scan_result", {})
+
+                if result.get("error"):
+                    st.error(f"❌ Scan error: {result['error']}")
+                elif not result.get("items"):
+                    st.warning("⚠️ No food items found. Try a clearer photo or check the receipt is in frame.")
+                else:
+                    items = result["items"]
+                    st.success(f"✅ Found {len(items)} food item(s) — review and edit below")
+
+                    # Editable item list
+                    st.markdown("**Extracted items — edit if needed:**")
+                    edited_items = []
+                    for i, item in enumerate(items):
+                        col_name, col_cat, col_del = st.columns([4, 2, 1])
+                        with col_name:
+                            name_val = st.text_input(
+                                f"Item {i+1}",
+                                value=item["product_name"],
+                                key=f"rc_item_name_{i}",
+                                label_visibility="collapsed"
+                            )
+                        with col_cat:
+                            cat_val = st.selectbox(
+                                "Category",
+                                options=["produce","meat","poultry","seafood","dairy",
+                                         "deli","frozen","pantry","beverage","bakery","snack","general"],
+                                index=["produce","meat","poultry","seafood","dairy",
+                                       "deli","frozen","pantry","beverage","bakery","snack","general"].index(
+                                    item.get("category","general")
+                                    if item.get("category","general") in
+                                    ["produce","meat","poultry","seafood","dairy",
+                                     "deli","frozen","pantry","beverage","bakery","snack","general"]
+                                    else "general"
+                                ),
+                                key=f"rc_item_cat_{i}",
+                                label_visibility="collapsed"
+                            )
+                        with col_del:
+                            keep = st.checkbox("✓", value=True, key=f"rc_keep_{i}")
+                        if keep and name_val.strip():
+                            edited_items.append({"product_name": name_val.strip(), "category": cat_val})
+
+                    # Add manual item
+                    st.markdown("<br>**Add a missing item:**", unsafe_allow_html=True)
+                    add_col1, add_col2, add_col3 = st.columns([4,2,1])
+                    with add_col1:
+                        extra_name = st.text_input("Extra item name", key="rc_extra_name", label_visibility="collapsed", placeholder="Product name")
+                    with add_col2:
+                        extra_cat  = st.selectbox("Category", options=["produce","meat","poultry","dairy","pantry","beverage","frozen","general"], key="rc_extra_cat", label_visibility="collapsed")
+                    with add_col3:
+                        add_item   = st.button("➕", key="rc_add_item")
+                    if add_item and extra_name.strip():
+                        if "rc_extra_items" not in st.session_state:
+                            st.session_state["rc_extra_items"] = []
+                        st.session_state["rc_extra_items"].append({"product_name": extra_name.strip(), "category": extra_cat})
+                        st.rerun()
+
+                    # Merge extra items
+                    all_items = edited_items + st.session_state.get("rc_extra_items", [])
+
+                    st.markdown(f"<br>**{len(all_items)} item(s) ready to enroll**", unsafe_allow_html=True)
+
+                    enroll_btn = st.button(
+                        f"🛡️ Enroll {len(all_items)} item(s) for recall monitoring",
+                        type="primary",
+                        use_container_width=True,
+                        key="rc_enroll_btn",
+                        disabled=len(all_items) == 0
+                    )
+
+                    if enroll_btn:
+                        if not rc_email or "@" not in rc_email:
+                            st.error("Valid email required.")
+                        else:
+                            with st.spinner("Enrolling and checking for immediate matches..."):
+                                enroll_result = enroll_via_api(
+                                    name      = rc_name,
+                                    email     = rc_email,
+                                    phone     = rc_phone,
+                                    zip_code  = rc_zip,
+                                    purchases = all_items,
+                                    channels  = rc_channels or ["email"],
+                                )
+
+                            if enroll_result.get("enrolled"):
+                                immediate = enroll_result.get("immediate_matches", 0)
+                                if immediate > 0:
+                                    st.error(f"🚨 {immediate} IMMEDIATE MATCH(ES) FOUND — check your phone and email now!")
+                                    for a in enroll_result.get("alerts_pending",[]):
+                                        sv,bc,bl = _sev(a.get("severity",""))
+                                        st.markdown(
+                                            f"<div class='match-card {sv.replace('sev','c')}' style='margin-top:6px'>"
+                                            f"<span class='badge {bc}'>{bl}</span>&nbsp;"
+                                            f"<span style='font-size:0.86rem;color:#e8e8f0'>{a['product'][:70]}</span><br>"
+                                            f"<span style='font-size:0.74rem;color:#9090a8'>Confidence: {a['confidence']}%</span>"
+                                            f"</div>",
+                                            unsafe_allow_html=True
+                                        )
+                                else:
+                                    st.success(f"✅ Enrolled! {len(all_items)} items now monitored. No current recalls match your purchases.")
+                                st.info("🔔 You'll be automatically notified via SMS and email if any future recalls match your purchases.")
+                                # Clear scan state
+                                st.session_state.pop("rc_scan_result", None)
+                                st.session_state.pop("rc_extra_items", None)
+                            else:
+                                st.error(f"Enrollment failed: {enroll_result.get('error','Unknown error')}")
+        else:
+            st.markdown("""<div style='background:#13131a;border:1px solid #22222e;border-radius:8px;
+                padding:2rem;text-align:center;color:#55556a'>
+                <div style='font-size:2rem;margin-bottom:0.5rem'>📷</div>
+                <div style='font-size:0.88rem'>Upload a receipt photo on the left<br>
+                Claude will extract your grocery items automatically</div>
+            </div>""", unsafe_allow_html=True)
+
+            st.markdown("<br>**How it works**", unsafe_allow_html=True)
+            for step, detail in [
+                ("1. Upload", "Photo of any grocery receipt — paper, app screenshot, or email receipt"),
+                ("2. Claude reads it", "Vision AI extracts every food item automatically"),
+                ("3. Review", "Edit the list if anything was misread"),
+                ("4. Enroll", "One click — you're in the system. Future recalls notify you automatically"),
+            ]:
+                st.markdown(f"""<div style='border:1px solid #22222e;border-radius:6px;
+                    padding:0.6rem 0.85rem;margin-bottom:5px'>
+                    <span style='color:#c0392b;font-weight:bold;font-size:0.82rem'>{step}</span>
+                    <span style='color:#9090a8;font-size:0.82rem'> — {detail}</span>
+                </div>""", unsafe_allow_html=True)
+
+# TAB 4: ALLERGEN ENGINE
+# ══════════════════════════════════════
+with tab4:
     st.subheader("🚨 Allergen Cross-Reference Engine")
     st.caption("FDA mandates 9 major allergens be declared. When a recall involves an undeclared allergen, affected customers get maximum-priority notification regardless of match confidence.")
     st.markdown("<br>",unsafe_allow_html=True)
@@ -3618,9 +3922,9 @@ That's the difference between a notification system and a family safety platform
 
 
 # ══════════════════════════════════════
-# TAB 7: ENGINE v8
+# TAB 8: ENGINE v8
 # ══════════════════════════════════════
-with tab7:
+with tab8:
     st.subheader("🔬 Match Engine v8 — Parallel Architecture")
     col_a,col_b=st.columns(2)
     with col_a:
