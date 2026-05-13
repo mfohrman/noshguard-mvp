@@ -3375,113 +3375,212 @@ with tab2:
     ul_left, ul_right = st.columns([3,2])
 
     with ul_left:
-        # Current data source status
+        # ── ACTIVE DATA STATUS ──
         if data_mode == "real" and upload_meta:
+            loaded_at = upload_meta.get("loaded_at","")
+            try: loaded_fmt = datetime.fromisoformat(loaded_at).strftime("%b %d %I:%M %p")
+            except: loaded_fmt = loaded_at[:16]
             st.markdown(f"""<div style="background:#0a1a0a;border:1px solid #27ae60;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem">
-                <div style="font-size:0.88rem;font-weight:500;color:#27ae60">🟢 Real data active</div>
-                <div style="font-size:0.78rem;color:#9090a8;margin-top:4px">
-                    File: <strong style="color:#e8e8f0">{upload_meta.get("filename","CSV")}</strong><br>
-                    Customers loaded: <strong style="color:#e8e8f0">{upload_meta.get("valid_rows",0):,}</strong><br>
-                    Rows in file: {upload_meta.get("raw_rows",0):,} ·
-                    Skipped: {upload_meta.get("skipped",0):,} ·
-                    Mode: {upload_meta.get("mode","unknown")}<br>
-                    Columns mapped: {len(upload_meta.get("columns",[]))}
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div style="font-size:0.88rem;font-weight:500;color:#27ae60">🟢 Real data active</div>
+                    <div style="font-size:0.68rem;color:#55556a">{loaded_fmt}</div>
+                </div>
+                <div style="font-size:0.78rem;color:#9090a8;margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                    <div>📄 {upload_meta.get("filename","CSV")}</div>
+                    <div>👥 {upload_meta.get("valid_rows",0):,} customers</div>
+                    <div>📊 {upload_meta.get("raw_rows",0):,} rows in file</div>
+                    <div>⚠️ {upload_meta.get("skipped",0):,} rows skipped</div>
                 </div>
             </div>""", unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("🔄 Upload new file", use_container_width=True):
+                    st.session_state[UPLOAD_SESSION_KEY] = None
+                    st.session_state[UPLOAD_META_KEY]    = None
+                    st.rerun()
+            with c2:
+                if st.button("🗑️ Return to demo mode", use_container_width=True):
+                    st.session_state[UPLOAD_SESSION_KEY] = None
+                    st.session_state[UPLOAD_META_KEY]    = None
+                    st.rerun()
+            st.markdown("<br>", unsafe_allow_html=True)
 
-            if st.button("🗑️ Clear — return to demo mode", use_container_width=True):
-                st.session_state[UPLOAD_SESSION_KEY] = None
-                st.session_state[UPLOAD_META_KEY]    = None
-                st.rerun()
-
+        # ── FILE UPLOAD ──
         st.markdown("**Upload your loyalty or POS export**")
-        st.markdown("""<div style="font-size:0.82rem;color:#9090a8;margin-bottom:1rem;line-height:1.6">
-            Accepts <strong style="color:#e8e8f0">CSV format</strong> from any loyalty platform or POS system.
-            Column names are flexible — the engine auto-detects common naming variations.
-            Maximum 100,000 rows. Larger files should be sampled first.
-        </div>""", unsafe_allow_html=True)
-
         uploaded_file = st.file_uploader(
             "Drop CSV here or click to browse",
             type=["csv","txt"],
-            help="Accepts comma, tab, pipe, or semicolon delimited files. UTF-8 or Latin-1 encoding."
+            help="Comma, tab, pipe, or semicolon delimited. UTF-8 or Latin-1. Up to 100,000 rows.",
+            key="csv_uploader"
         )
 
         if uploaded_file is not None:
+            file_size_kb = round(len(uploaded_file.getvalue()) / 1024, 1)
+            st.caption(f"📄 {uploaded_file.name} · {file_size_kb} KB")
+
             with st.spinner(f"Parsing {uploaded_file.name}..."):
-                file_bytes = uploaded_file.read()
+                file_bytes   = uploaded_file.read()
                 parse_result = parse_csv_upload(file_bytes, uploaded_file.name)
 
             if parse_result.get("error"):
                 st.error(f"❌ Parse failed: {parse_result['error']}")
+                st.markdown("""**Common causes:**
+- File is not valid CSV (try opening in Excel and re-saving as CSV)
+- File uses an unusual encoding (try saving as UTF-8)
+- File is empty or has no headers""")
+
             elif not parse_result["customers"]:
-                st.warning("⚠️ No customers could be extracted from this file. Check the format and try again.")
+                st.warning("⚠️ No customers could be extracted.")
+                st.markdown("""**Check:**
+- Does the file have a header row?
+- Does it have at least one column with customer ID, email, or name?
+- Download the sample template on the right to compare format.""")
+
             else:
-                # Show parse summary
-                n = len(parse_result["customers"])
-                st.markdown(f"""<div style="background:#0a1a0a;border:1px solid #27ae60;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem">
-                    <div style="font-size:0.88rem;font-weight:500;color:#27ae60">✅ {n:,} customers parsed successfully</div>
-                    <div style="font-size:0.76rem;color:#9090a8;margin-top:4px">
+                customers  = parse_result["customers"]
+                n          = len(customers)
+
+                # ── DATA QUALITY SCORE ──
+                has_upc    = sum(1 for c in customers if c.get("upcs"))
+                has_dates  = sum(1 for c in customers if c.get("purchase_date") and c["purchase_date"] != datetime.now() - timedelta(days=14))
+                has_email  = sum(1 for c in customers if c.get("email") and "@" in c.get("email",""))
+                has_phone  = sum(1 for c in customers if c.get("phone") and len(c.get("phone","")) >= 10)
+                upc_pct    = int(has_upc/n*100)
+                date_pct   = int(has_dates/n*100)
+                qual_score = int((upc_pct*0.4 + date_pct*0.3 + (has_email/n*100)*0.2 + (has_phone/n*100)*0.1))
+                qual_color = "#27ae60" if qual_score>=70 else "#d4830a" if qual_score>=40 else "#c0392b"
+                qual_label = "Excellent" if qual_score>=70 else "Good" if qual_score>=40 else "Limited"
+
+                st.markdown(f"""<div style="background:#13131a;border:1px solid #22222e;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <div style="font-size:0.88rem;font-weight:500;color:#27ae60">✅ {n:,} customers parsed</div>
+                        <div style="font-size:0.78rem;color:{qual_color};font-weight:bold">Data quality: {qual_label} ({qual_score}/100)</div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:0.72rem;color:#55556a">
+                        <div style="background:#0c0c0f;border-radius:4px;padding:6px;text-align:center">
+                            <div style="font-size:1rem;font-weight:bold;color:{"#27ae60" if upc_pct>=50 else "#d4830a"}">{upc_pct}%</div>
+                            <div>UPC coverage</div>
+                        </div>
+                        <div style="background:#0c0c0f;border-radius:4px;padding:6px;text-align:center">
+                            <div style="font-size:1rem;font-weight:bold;color:{"#27ae60" if date_pct>=50 else "#d4830a"}">{date_pct}%</div>
+                            <div>Date coverage</div>
+                        </div>
+                        <div style="background:#0c0c0f;border-radius:4px;padding:6px;text-align:center">
+                            <div style="font-size:1rem;font-weight:bold;color:{"#27ae60" if has_email/n>=0.5 else "#d4830a"}">{int(has_email/n*100)}%</div>
+                            <div>Email coverage</div>
+                        </div>
+                        <div style="background:#0c0c0f;border-radius:4px;padding:6px;text-align:center">
+                            <div style="font-size:1rem;font-weight:bold;color:{"#27ae60" if has_phone/n>=0.5 else "#d4830a"}">{int(has_phone/n*100)}%</div>
+                            <div>Phone coverage</div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.72rem;color:#55556a;margin-top:6px">
                         {parse_result["raw_rows"]:,} rows · {parse_result["valid_rows"]:,} valid · {parse_result["skipped"]:,} skipped · Mode: {parse_result["mode"]}
+                        {"· ⚠️ Low UPC coverage means keyword-only matching — less precise" if upc_pct < 30 else "· 🔵 UPC data present — exact matching available"}
                     </div>
                 </div>""", unsafe_allow_html=True)
 
-                # Show warnings
+                # ── WARNINGS ──
                 issues = validate_upload_result(parse_result)
                 for issue in issues:
                     st.warning(issue)
 
-                # Column mapping summary
-                with st.expander("📋 Column mapping detected"):
-                    mapped = {k:v for k,v in
-                              {f: _find_col(parse_result["columns"], f) for f in COLUMN_ALIASES}.items()
-                              if v is not None}
-                    unmapped = [c for c in parse_result["columns"]
-                                if c not in mapped.values()]
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown("**Mapped columns**")
-                        for field, col_name in mapped.items():
-                            st.markdown(f"<span style='color:#27ae60'>✅</span> `{col_name}` → {field}",
-                                        unsafe_allow_html=True)
-                    with col2:
-                        st.markdown("**Unmapped columns**")
-                        for col_name in unmapped:
-                            st.markdown(f"<span style='color:#55556a'>—</span> `{col_name}` (ignored)",
-                                        unsafe_allow_html=True)
+                # ── COLUMN MAPPING (always visible, not buried in expander) ──
+                mapped = {k:v for k,v in
+                          {f: _find_col(parse_result["columns"], f) for f in COLUMN_ALIASES}.items()
+                          if v is not None}
+                unmapped_cols = [c for c in parse_result["columns"] if c not in mapped.values()]
+                mapping_color = "#27ae60" if len(mapped) >= 4 else "#d4830a"
+                st.markdown(f"**Column mapping — {len(mapped)} of {len(parse_result['columns'])} columns recognized**")
+                cm1, cm2 = st.columns(2)
+                with cm1:
+                    for field, col_name in list(mapped.items())[:8]:
+                        st.markdown(f"<span style='color:#27ae60'>✅</span> `{col_name}` → **{field}**", unsafe_allow_html=True)
+                with cm2:
+                    for col_name in unmapped_cols[:8]:
+                        st.markdown(f"<span style='color:#55556a'>—</span> `{col_name}` *(ignored)*", unsafe_allow_html=True)
+                    if len(unmapped_cols) > 8:
+                        st.caption(f"+ {len(unmapped_cols)-8} more ignored columns")
 
-                # Preview parsed customers
-                with st.expander(f"👥 Preview — first 5 customers"):
-                    for c in parse_result["customers"][:5]:
-                        st.markdown(f"""<div class="loyalty-card" style="padding:0.6rem 0.85rem;margin-bottom:5px">
+                # ── CUSTOMER PREVIEW ──
+                with st.expander(f"👥 Preview — first {min(5,n)} customers"):
+                    for c in customers[:5]:
+                        upc_badge = f"<span style='color:#8e44ad;font-size:0.68rem'>🔵 {len(c['upcs'])} UPC(s)</span>" if c.get("upcs") else "<span style='color:#55556a;font-size:0.68rem'>no UPC</span>"
+                        st.markdown(f"""<div class="loyalty-card" style="padding:0.6rem 0.85rem;margin-bottom:4px">
                             <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
                                 <strong style="color:#e8e8f0;font-size:0.86rem">{c["name"]}</strong>
-                                <span style="font-size:0.72rem;color:#55556a">{c["store"]}</span>
+                                <span style="font-size:0.7rem;color:#55556a">{c["store"][:30]}</span>
                             </div>
-                            <div style="font-size:0.74rem;color:#9090a8">{c["email"]} · {c["category"]} · {c["purchase_freq"]} shopper</div>
-                            <div style="font-size:0.72rem;color:#55556a;margin-top:3px">
-                                Keywords: {", ".join(c["keywords"][:4])} ·
-                                UPCs: {len(c["upcs"])} ·
-                                Purchases: {len(c["purchases"])}
+                            <div style="font-size:0.74rem;color:#9090a8;margin-top:2px">
+                                {c["email"]} · {c["category"]} · {c["purchase_freq"]}
+                                &nbsp;{upc_badge}
+                            </div>
+                            <div style="font-size:0.7rem;color:#55556a;margin-top:2px">
+                                {", ".join(c["purchases"][:3])}{"..." if len(c["purchases"])>3 else ""}
                             </div>
                         </div>""", unsafe_allow_html=True)
 
-                # Activate button
-                st.markdown("<br>",unsafe_allow_html=True)
-                if st.button(f"🚀 Activate — run engine against {n:,} real customers",
-                             type="primary", use_container_width=True):
+                # ── MATCH PREVIEW ──
+                st.markdown("<br>", unsafe_allow_html=True)
+                preview_btn = st.button("🔍 Preview matches before activating", use_container_width=True, key="upload_preview")
+                if preview_btn or st.session_state.get("upload_preview_result"):
+                    if preview_btn:
+                        with st.spinner(f"Running engine against {n:,} customers..."):
+                            preview_matches, preview_bm = run_engine_via_api(customers, all_recalls)
+                            st.session_state["upload_preview_result"] = {
+                                "matches":   preview_matches,
+                                "benchmark": preview_bm,
+                            }
+                    pr = st.session_state.get("upload_preview_result", {})
+                    pm = pr.get("matches", [])
+                    pbm = pr.get("benchmark", {})
+                    high = [m for m in pm if m["priority"] >= 70]
+                    allergen = [m for m in pm if m.get("allergen_triggered")]
+
+                    if not pm:
+                        st.success(f"✅ Engine ran in {pbm.get('elapsed_ms','?')}ms — no current recall matches found across {n:,} customers.")
+                    else:
+                        st.warning(f"⚠️ Found {len(pm)} match(es) across {n:,} customers · {pbm.get('elapsed_ms','?')}ms")
+                        if allergen:
+                            st.error(f"🚨 {len(allergen)} ALLERGEN ALERT(S) — immediate action required after activation")
+                        for m in pm[:5]:
+                            sv,bc,bl = _sev(m["recall"]["cls"])
+                            st.markdown(
+                                f"<div class='match-card {sv}' style='padding:0.55rem 0.85rem;margin-bottom:4px'>"
+                                f"<strong style='font-size:0.86rem'>{m['customer']['name']}</strong>"
+                                f"&nbsp;<span class='badge {bc}'>{bl}</span>"
+                                f"<div style='font-size:0.76rem;color:#9090a8;margin-top:2px'>"
+                                f"{m['recall']['product'][:60]} · {m['match_type']} · {m['score']}%"
+                                f"</div></div>",
+                                unsafe_allow_html=True
+                            )
+                        if len(pm) > 5:
+                            st.caption(f"+ {len(pm)-5} more matches — see full list after activation")
+
+                # ── ACTIVATE ──
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button(
+                    f"🚀 Activate — run engine against {n:,} real customers",
+                    type="primary",
+                    use_container_width=True,
+                    key="upload_activate"
+                ):
                     meta = {
-                        "filename":   uploaded_file.name,
-                        "raw_rows":   parse_result["raw_rows"],
-                        "valid_rows": parse_result["valid_rows"],
-                        "skipped":    parse_result["skipped"],
-                        "mode":       parse_result["mode"],
-                        "columns":    parse_result["columns"],
-                        "loaded_at":  datetime.now().isoformat(),
+                        "filename":    uploaded_file.name,
+                        "raw_rows":    parse_result["raw_rows"],
+                        "valid_rows":  parse_result["valid_rows"],
+                        "skipped":     parse_result["skipped"],
+                        "mode":        parse_result["mode"],
+                        "columns":     parse_result["columns"],
+                        "loaded_at":   datetime.now().isoformat(),
+                        "quality":     qual_score,
+                        "upc_pct":     upc_pct,
                     }
-                    st.session_state[UPLOAD_SESSION_KEY] = parse_result["customers"]
+                    st.session_state[UPLOAD_SESSION_KEY] = customers
                     st.session_state[UPLOAD_META_KEY]    = meta
-                    st.success(f"✅ {n:,} customers loaded — engine will re-run immediately.")
+                    st.session_state.pop("upload_preview_result", None)
+                    st.success(f"✅ {n:,} customers activated · Data quality: {qual_label} ({qual_score}/100)")
+                    st.info("Switch to the Dashboard tab to see matches and send alerts.")
                     st.rerun()
 
     with ul_right:
