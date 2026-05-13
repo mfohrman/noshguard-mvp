@@ -2503,7 +2503,7 @@ poll_status   = poll_data["status"]
 # If store is empty (very first load before thread completes), run once inline
 if not matches and all_recalls:
     with st.spinner("Running engine via API..."):
-        matches, benchmark = run_engine_via_api(active_customers, all_recalls)
+        matches, benchmark = run_engine_via_api(CUSTOMERS, all_recalls)
 
 st.markdown("""
 <div class="ng-header">
