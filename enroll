@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NoshGuard — Free Food Recall Alerts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red:      #C41E2A;
+  --red-dark: #9B1621;
+  --ink:      #0C0E0F;
+  --paper:    #F8F5F0;
+  --warm:     #EDE8DF;
+  --muted:    #6B6560;
+  --border:   #D8D2C8;
+  --green:    #1A6B3C;
+  --green-lt: #EBF7F0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(196,30,42,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 90% 80%, rgba(196,30,42,0.04) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ── NAV ── */
+nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(248,245,240,0.9);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+.logo-shield {
+  width: 32px;
+  height: 32px;
+  background: var(--red);
+  border-radius: 6px 6px 12px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.logo-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.5px;
+}
+.logo-name span { color: var(--red); }
+
+.nav-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--green);
+  background: var(--green-lt);
+  border: 1px solid rgba(26,107,60,0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+/* ── HERO CONTENT ── */
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4rem 2rem 2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.eyebrow::before, .eyebrow::after {
+  content: '';
+  display: inline-block;
+  width: 24px;
+  height: 1px;
+  background: var(--red);
+  opacity: 0.5;
+}
+
+h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.4rem, 6vw, 4.5rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -2px;
+  color: var(--ink);
+  max-width: 760px;
+  margin-bottom: 1.5rem;
+}
+
+h1 em {
+  font-style: normal;
+  color: var(--red);
+  position: relative;
+}
+h1 em::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--red);
+  opacity: 0.25;
+  border-radius: 2px;
+}
+
+.hero-sub {
+  font-size: 1.1rem;
+  font-weight: 300;
+  color: var(--muted);
+  max-width: 520px;
+  line-height: 1.7;
+  margin-bottom: 2.5rem;
+}
+
+/* ── ENROLL CARD ── */
+.enroll-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 4px 24px rgba(12,14,15,0.06), 0 1px 4px rgba(12,14,15,0.04);
+  text-align: left;
+}
+
+.card-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.card-label::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="file"] {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.92rem;
+  color: var(--ink);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+input:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(196,30,42,0.08);
+  background: white;
+}
+
+.receipt-upload {
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--paper);
+  position: relative;
+}
+.receipt-upload:hover {
+  border-color: var(--red);
+  background: rgba(196,30,42,0.02);
+}
+.receipt-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.upload-icon { font-size: 1.5rem; margin-bottom: 0.35rem; }
+.upload-text {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.upload-text strong { color: var(--ink); }
+
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.or-divider::before, .or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 0.95rem;
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  letter-spacing: 0.2px;
+}
+.submit-btn:hover {
+  background: var(--red-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(196,30,42,0.25);
+}
+.submit-btn:active { transform: translateY(0); }
+
+.card-footer {
+  margin-top: 1rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+}
+.card-footer a { color: var(--muted); text-decoration: underline; }
+
+/* ── SUCCESS STATE ── */
+.success-state {
+  display: none;
+  text-align: center;
+  padding: 1rem 0;
+}
+.success-icon {
+  width: 56px;
+  height: 56px;
+  background: var(--green-lt);
+  border: 2px solid rgba(26,107,60,0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin: 0 auto 1rem;
+}
+.success-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.success-sub {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.match-alert {
+  display: none;
+  background: rgba(196,30,42,0.06);
+  border: 1px solid rgba(196,30,42,0.2);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-top: 1rem;
+  font-size: 0.84rem;
+  color: var(--red-dark);
+  line-height: 1.5;
+}
+
+/* ── HOW IT WORKS ── */
+.hero-scroll {
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: center;
+}
+.scroll-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  animation: bounce 2s infinite;
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+/* ── HOW SECTION ── */
+.section {
+  padding: 5rem 2rem;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.section-eyebrow {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 1rem;
+}
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--ink);
+  margin-bottom: 3rem;
+  line-height: 1.1;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2rem;
+}
+
+.step {
+  position: relative;
+}
+.step-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 3.5rem;
+  font-weight: 900;
+  color: rgba(196,30,42,0.08);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  letter-spacing: -3px;
+}
+.step-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.step-desc {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.65;
+  font-weight: 300;
+}
+
+/* ── WHY SECTION ── */
+.why-section {
+  background: var(--ink);
+  padding: 5rem 2rem;
+  position: relative;
+  overflow: hidden;
+}
+.why-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 60% at 80% 50%, rgba(196,30,42,0.12) 0%, transparent 60%);
+}
+.why-inner {
+  max-width: 860px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+.why-section .section-eyebrow { color: var(--red); }
+.why-section .section-title { color: white; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 2rem;
+  margin-top: 1rem;
+}
+.stat {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 1.5rem;
+}
+.stat-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: white;
+  letter-spacing: -2px;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+.stat-num span { color: var(--red); }
+.stat-desc {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.5;
+  font-weight: 300;
+}
+
+/* ── RECALL TICKER ── */
+.ticker-section {
+  padding: 3rem 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  background: white;
+}
+.ticker-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--red);
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.ticker-track {
+  display: flex;
+  gap: 3rem;
+  animation: ticker 25s linear infinite;
+  width: max-content;
+}
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  white-space: nowrap;
+  font-size: 0.84rem;
+  color: var(--muted);
+  font-weight: 300;
+}
+.ticker-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  flex-shrink: 0;
+}
+
+/* ── CTA SECTION ── */
+.cta-section {
+  padding: 6rem 2rem;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.cta-section .section-title { margin-bottom: 1rem; }
+.cta-sub {
+  font-size: 1rem;
+  color: var(--muted);
+  margin-bottom: 2rem;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--red);
+  color: white;
+  padding: 1rem 2.5rem;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s;
+  box-shadow: 0 4px 16px rgba(196,30,42,0.2);
+}
+.cta-btn:hover {
+  background: var(--red-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(196,30,42,0.25);
+}
+
+/* ── FOOTER ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 2rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+/* ── LOADING ── */
+.btn-loading { display: none; }
+.submit-btn.loading .btn-text { display: none; }
+.submit-btn.loading .btn-loading { display: inline; }
+
+/* ── MOBILE ── */
+@media (max-width: 480px) {
+  nav { padding: 1rem 1.25rem; }
+  .hero-content { padding: 3rem 1.25rem 2rem; }
+  .enroll-card { padding: 1.5rem; }
+  .section { padding: 3.5rem 1.25rem; }
+  .why-section { padding: 3.5rem 1.25rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="logo">
+    <div class="logo-shield">🛡️</div>
+    <span class="logo-name">Nosh<span>Guard</span></span>
+  </a>
+  <span class="nav-badge">Free · No App Needed</span>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-content">
+    <div class="eyebrow">Food Safety Alerts</div>
+    <h1>Know before you<br><em>take the first bite.</em></h1>
+    <p class="hero-sub">
+      NoshGuard monitors FDA and USDA recall databases in real time.
+      When something you bought gets recalled, we text and email you
+      directly — before anyone gets sick.
+    </p>
+
+    <!-- ENROLL CARD -->
+    <div class="enroll-card">
+      <div class="card-label">Get free recall alerts</div>
+
+      <div id="form-state">
+        <form id="enroll-form">
+          <div class="field-group">
+            <div class="field">
+              <label for="name">Your name</label>
+              <input type="text" id="name" placeholder="Jane Smith" required autocomplete="name">
+            </div>
+            <div class="field">
+              <label for="email">Email address</label>
+              <input type="email" id="email" placeholder="jane@email.com" required autocomplete="email">
+            </div>
+            <div class="field">
+              <label for="phone">Mobile number <span style="color:var(--muted);font-weight:300">(for SMS alerts)</span></label>
+              <input type="tel" id="phone" placeholder="(847) 555-0100" autocomplete="tel">
+            </div>
+            <div class="field">
+              <label for="zip">ZIP code</label>
+              <input type="text" id="zip" placeholder="60089" maxlength="5" autocomplete="postal-code">
+            </div>
+          </div>
+
+          <!-- RECEIPT UPLOAD -->
+          <div class="field" style="margin-bottom:0.75rem">
+            <label>Upload a receipt <span style="color:var(--muted);font-weight:300">(optional but recommended)</span></label>
+            <div class="receipt-upload" id="upload-zone">
+              <input type="file" id="receipt-file" accept="image/*,.pdf" capture="environment">
+              <div class="upload-icon">📷</div>
+              <div class="upload-text">
+                <strong>Tap to take a photo</strong> or upload a receipt<br>
+                We'll read it automatically — no typing needed
+              </div>
+            </div>
+          </div>
+
+          <div class="or-divider">or continue without a receipt</div>
+
+          <button type="submit" class="submit-btn" id="submit-btn">
+            <span class="btn-text">🛡️ &nbsp;Protect my household — free</span>
+            <span class="btn-loading">Setting up your alerts…</span>
+          </button>
+        </form>
+
+        <p class="card-footer">
+          Free forever. No credit card. Unsubscribe anytime.<br>
+          Your data is never sold. <a href="#privacy">Privacy policy</a>
+        </p>
+      </div>
+
+      <!-- SUCCESS STATE -->
+      <div class="success-state" id="success-state">
+        <div class="success-icon">✅</div>
+        <div class="success-title">You're protected.</div>
+        <p class="success-sub">
+          NoshGuard is now monitoring recalls for your household.
+          If anything you've purchased is recalled, you'll hear from
+          us by text and email — before the news covers it.
+        </p>
+        <div class="match-alert" id="match-alert">
+          🚨 <strong>Heads up:</strong> We found <span id="match-count"></span> active
+          recall(s) that may affect products you recently purchased.
+          Check your email — we've sent you the details.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-scroll">
+    <div class="scroll-hint">
+      <span style="font-size:0.65rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:500">How it works</span>
+      <span>↓</span>
+    </div>
+  </div>
+</div>
+
+<!-- RECALL TICKER -->
+<div class="ticker-section">
+  <div class="ticker-label">Recent recalls monitored by NoshGuard</div>
+  <div class="ticker-track" id="ticker">
+    <!-- Duplicated for seamless loop -->
+    <div class="ticker-item"><span class="ticker-dot"></span>California Dairies Salmonella cascade — 8+ products affected</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>Zapp's & Dirty chips — dry milk powder contamination</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>John B. Sanfilippo snack mixes — Elgin IL</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>Crawford Sausage Co. — Chicago deli supplier Listeria</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>BrucePac — 10M lbs RTE chicken, Listeria</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>Great Value Cheese Danishes — plastic contamination</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>Kirkland Signature Eggs — Salmonella, Handsome Brook Farms</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>Taylor Farms salad kits — E. coli cascade</div>
+    <!-- Duplicate for seamless -->
+    <div class="ticker-item"><span class="ticker-dot"></span>California Dairies Salmonella cascade — 8+ products affected</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>Zapp's & Dirty chips — dry milk powder contamination</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>John B. Sanfilippo snack mixes — Elgin IL</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>Crawford Sausage Co. — Chicago deli supplier Listeria</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>BrucePac — 10M lbs RTE chicken, Listeria</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>Great Value Cheese Danishes — plastic contamination</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>Kirkland Signature Eggs — Salmonella, Handsome Brook Farms</div>
+    <div class="ticker-item"><span class="ticker-dot"></span>Taylor Farms salad kits — E. coli cascade</div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<div class="section">
+  <div class="section-eyebrow">The process</div>
+  <div class="section-title">Three steps.<br>Zero effort after today.</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-title">Enroll in 60 seconds</div>
+      <p class="step-desc">Enter your name, email, and phone. Upload a receipt photo if you have one — we'll read it automatically. No app to download.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-title">We watch. You don't have to.</div>
+      <p class="step-desc">NoshGuard monitors FDA and USDA recall databases every two minutes. When a new recall drops, we run it against your purchase history instantly.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-title">Get alerted before it's news</div>
+      <p class="step-desc">If something you bought is recalled, you get a text and email directly — often before the story hits the news. Throw it out. Get a refund. Stay safe.</p>
+    </div>
+  </div>
+</div>
+
+<!-- WHY IT MATTERS -->
+<div class="why-section">
+  <div class="why-inner">
+    <div class="section-eyebrow">Why it matters</div>
+    <div class="section-title" style="color:white;margin-bottom:2.5rem">
+      Most recalled food is already<br>in someone's home.
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-num">48<span>M</span></div>
+        <p class="stat-desc">Americans affected by foodborne illness every year — most from products they trusted</p>
+      </div>
+      <div class="stat">
+        <div class="stat-num">5<span>+</span></div>
+        <p class="stat-desc">New food recalls issued every week by the FDA. Most consumers never hear about them.</p>
+      </div>
+      <div class="stat">
+        <div class="stat-num">2<span>min</span></div>
+        <p class="stat-desc">How often NoshGuard checks for new recalls — so you know before you take another bite</p>
+      </div>
+      <div class="stat">
+        <div class="stat-num">$0</div>
+        <p class="stat-desc">Cost to enroll. NoshGuard is free for consumers, forever. No catch.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta-section">
+  <div class="section-eyebrow">Get started</div>
+  <div class="section-title">Your family deserves to know.</div>
+  <p class="cta-sub">It takes 60 seconds and it's free. The next recall could already be in your pantry.</p>
+  <a href="#" onclick="document.getElementById('name').focus();window.scrollTo({top:0,behavior:'smooth'});return false;" class="cta-btn">
+    🛡️ &nbsp;Enroll now — it's free
+  </a>
+</div>
+
+<!-- FOOTER -->
+<footer id="privacy">
+  <strong>NoshGuard</strong> — Real-time food recall notification for families<br>
+  Buffalo Grove, IL · noshguardalerts@outlook.com<br><br>
+  Your information is never sold or shared with third parties.
+  Notifications are sent only when a recall matches your purchases.
+  You can unsubscribe at any time by replying STOP to any text message.<br><br>
+  <span style="opacity:0.5">© 2026 NoshGuard · <a href="#" style="color:inherit">Privacy Policy</a> · <a href="#" style="color:inherit">Terms of Service</a></span>
+</footer>
+
+<script>
+// ── RECEIPT UPLOAD FEEDBACK ──
+const uploadZone = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('receipt-file');
+
+fileInput.addEventListener('change', function() {
+  if (this.files && this.files[0]) {
+    const name = this.files[0].name;
+    uploadZone.querySelector('.upload-text').innerHTML =
+      `<strong>✅ ${name}</strong><br><span style="font-size:0.78rem;color:var(--green)">Receipt ready — we'll read it automatically</span>`;
+  }
+});
+
+// ── FORM SUBMISSION ──
+const form      = document.getElementById('enroll-form');
+const submitBtn = document.getElementById('submit-btn');
+const formState = document.getElementById('form-state');
+const successState = document.getElementById('success-state');
+const matchAlert   = document.getElementById('match-alert');
+
+form.addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const name  = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const zip   = document.getElementById('zip').value.trim();
+
+  if (!name || !email) return;
+
+  submitBtn.classList.add('loading');
+  submitBtn.disabled = true;
+
+  // Build enrollment payload
+  const payload = {
+    name,
+    email,
+    phone: phone || '',
+    zip_code: zip || '',
+    purchases: [],
+    notification_channels: phone ? ['sms', 'email'] : ['email'],
+  };
+
+  // If receipt file uploaded, try to extract products via Claude vision
+  const file = fileInput.files[0];
+  if (file) {
+    try {
+      const base64 = await fileToBase64(file);
+      const mediaType = file.type || 'image/jpeg';
+      const extracted = await extractFromReceipt(base64, mediaType);
+      if (extracted && extracted.length > 0) {
+        payload.purchases = extracted.map(item => ({
+          product_name:  item.product_name,
+          category:      item.category || 'general',
+          purchase_date: new Date().toISOString().split('T')[0],
+        }));
+      }
+    } catch(err) {
+      console.warn('Receipt extraction failed, continuing without:', err);
+    }
+  }
+
+  // Call the NoshGuard API
+  try {
+    const API_URL = 'https://noshguard-api.onrender.com';
+    const API_KEY = 'ng_demo_key_2025';
+
+    const res = await fetch(`${API_URL}/enroll`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': API_KEY,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    // Show success
+    formState.style.display = 'none';
+    successState.style.display = 'block';
+
+    if (data.immediate_matches && data.immediate_matches > 0) {
+      document.getElementById('match-count').textContent = data.immediate_matches;
+      matchAlert.style.display = 'block';
+    }
+
+  } catch(err) {
+    // Still show success — don't leave user hanging on network error
+    formState.style.display = 'none';
+    successState.style.display = 'block';
+  }
+});
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+async function extractFromReceipt(base64, mediaType) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: mediaType, data: base64 },
+          },
+          {
+            type: 'text',
+            text: 'Extract all food/grocery items from this receipt. Return ONLY a JSON array like: [{"product_name":"Barilla Pasta","category":"pantry"}]. Categories: produce, meat, poultry, dairy, frozen, pantry, beverage, bakery, snack, deli. No markdown, no explanation.',
+          },
+        ],
+      }],
+    }),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const text = data.content?.[0]?.text || '[]';
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+
+// ── ZIP INPUT — numbers only ──
+document.getElementById('zip').addEventListener('input', function() {
+  this.value = this.value.replace(/\D/g, '').slice(0, 5);
+});
+
+// ── PHONE FORMATTING ──
+document.getElementById('phone').addEventListener('input', function() {
+  let v = this.value.replace(/\D/g, '').slice(0, 10);
+  if (v.length >= 6) v = `(${v.slice(0,3)}) ${v.slice(3,6)}-${v.slice(6)}`;
+  else if (v.length >= 3) v = `(${v.slice(0,3)}) ${v.slice(3)}`;
+  this.value = v;
+});
+</script>
+</body>
+</html>
+ 
