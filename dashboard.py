@@ -2468,7 +2468,10 @@ def run_engine_via_api(customers: list, all_recalls: list) -> tuple:
 # ═══════════════════════════════════════════════
 
 # Start the background thread (idempotent — safe on every rerun)
-ensure_polling_started()
+try:
+    ensure_polling_started()
+except Exception as _pe:
+    st.warning(f"⚠️ Polling init error: {_pe}")
 
 # If poll store is still initializing, show a spinner
 poll_data = get_poll_data()
