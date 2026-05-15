@@ -127,22 +127,19 @@ st.markdown("""
    Polished · Trustworthy · Grocer-pitch ready
    ═══════════════════════════════════════════════ */
 
-/* ── FONTS ── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 /* ── BASE ── */
 .stApp {
     background-color: #080C14;
     color: #E2E8F0;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 .block-container {
     padding-top: 1.5rem;
     padding-bottom: 3rem;
     max-width: 1400px;
 }
-p, li, span, div { font-family: 'Inter', sans-serif; }
-h1, h2, h3 { font-family: 'Inter', sans-serif; font-weight: 600; }
+p, li, span, div { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+h1, h2, h3 { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 600; }
 
 /* ── STREAMLIT NATIVE OVERRIDES ── */
 /* Hide default header decoration */
@@ -166,7 +163,7 @@ h1, h2, h3 { font-family: 'Inter', sans-serif; font-weight: 600; }
 .stTabs [data-baseweb="tab"] {
     background: transparent;
     color: #64748B;
-    font-family: 'Inter', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 0.78rem;
     font-weight: 500;
     letter-spacing: 0.3px;
@@ -221,7 +218,7 @@ h1, h2, h3 { font-family: 'Inter', sans-serif; font-weight: 600; }
 
 /* ── BUTTONS ── */
 .stButton > button {
-    font-family: 'Inter', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-weight: 500;
     font-size: 0.84rem;
     border-radius: 6px;
@@ -257,7 +254,7 @@ h1, h2, h3 { font-family: 'Inter', sans-serif; font-weight: 600; }
     border: 1px solid #1E293B !important;
     border-radius: 6px !important;
     color: #E2E8F0 !important;
-    font-family: 'Inter', sans-serif !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 .stTextInput > div > div > input:focus {
     border-color: #DC2626 !important;
@@ -269,7 +266,7 @@ h1, h2, h3 { font-family: 'Inter', sans-serif; font-weight: 600; }
     background: #0D1117 !important;
     border: 1px solid #1E293B !important;
     border-radius: 6px !important;
-    font-family: 'Inter', sans-serif !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     font-size: 0.84rem !important;
     color: #94A3B8 !important;
     font-weight: 500 !important;
