@@ -3874,9 +3874,9 @@ with tab4:
 
 
 # ══════════════════════════════════════
-# TAB 4: BAYESIAN PROBABILITY
+# TAB 5: BAYESIAN PROBABILITY
 # ══════════════════════════════════════
-with tab4:
+with tab5:
     st.subheader("🎯 Bayesian Purchase Probability")
     st.caption("Estimates P(item still in home) using purchase cadence, category consumption rate, and time since purchase.")
     st.markdown("<br>",unsafe_allow_html=True)
@@ -3925,7 +3925,7 @@ These are different risk profiles. The engine now knows the difference.""")
 # ══════════════════════════════════════
 # TAB 4: RECALL TRAJECTORY
 # ══════════════════════════════════════
-with tab5:
+with tab6:
     st.subheader("📈 Recall Severity Trajectory")
     st.caption("Recalls get upgraded. When they do, every active match is re-scored automatically — no manual intervention needed.")
     st.markdown("<br>",unsafe_allow_html=True)
@@ -3974,9 +3974,9 @@ with tab5:
 
 
 # ══════════════════════════════════════
-# TAB 6: HOUSEHOLD AGGREGATION
+# TAB 7: HOUSEHOLD AGGREGATION
 # ══════════════════════════════════════
-with tab6:
+with tab7:
     st.subheader("🏠 Household-Level Matching")
     st.caption("Two loyalty members at the same address are analyzed together. One household alert — not two separate ones.")
     st.markdown("<br>",unsafe_allow_html=True)
@@ -4118,9 +4118,9 @@ Result: 10M → 20 calculations. Zero redundancy.""")
 
 
 # ══════════════════════════════════════
-# TAB 8: PERFORMANCE DEEP DIVE
+# TAB 9: PERFORMANCE DEEP DIVE
 # ══════════════════════════════════════
-with tab8:
+with tab9:
     st.subheader("⚡ Engine Performance Dashboard")
     st.caption("Live benchmark from this session's engine run")
     st.markdown("<br>",unsafe_allow_html=True)
@@ -4217,9 +4217,9 @@ with tab8:
 
 
 # ══════════════════════════════════════
-# TAB 9: HISTORY — live from SQLite
+# TAB 10: HISTORY — live from SQLite
 # ══════════════════════════════════════
-with tab9:
+with tab10:
     st.subheader("📈 Recall & Alert History")
     st.caption("Live from SQLite — every poll and alert recorded persistently")
     st.markdown("<br>",unsafe_allow_html=True)
@@ -4412,9 +4412,9 @@ with tab9:
 
 
 # ══════════════════════════════════════
-# TAB 10: PILOT REPORT GENERATOR
+# TAB 11: PILOT REPORT GENERATOR
 # ══════════════════════════════════════
-with tab10:
+with tab11:
     st.subheader("📄 Pilot Report Generator")
     st.caption("Fill in the details below and generate a complete report you can hand across a table or email as a PDF.")
     st.markdown("<br>", unsafe_allow_html=True)
