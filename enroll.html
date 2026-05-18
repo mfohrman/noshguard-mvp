@@ -602,6 +602,69 @@ footer {
   .section { padding: 3.5rem 1.25rem; }
   .why-section { padding: 3.5rem 1.25rem; }
 }
+
+/* ── ZIP TOOLTIP ── */
+.zip-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.info-btn {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid var(--muted);
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1;
+  padding: 0;
+  position: relative;
+  top: 0px;
+}
+.info-btn:hover,
+.info-btn.active {
+  border-color: var(--green);
+  color: var(--green);
+}
+.zip-callout {
+  display: none;
+  margin-top: 0.5rem;
+  background: var(--green-lt);
+  border: 1px solid rgba(26,107,60,0.2);
+  border-radius: 8px;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.78rem;
+  color: #1a4a2e;
+  line-height: 1.6;
+  position: relative;
+}
+.zip-callout::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 18px;
+  width: 10px;
+  height: 10px;
+  background: var(--green-lt);
+  border-left: 1px solid rgba(26,107,60,0.2);
+  border-top: 1px solid rgba(26,107,60,0.2);
+  transform: rotate(45deg);
+}
+.zip-callout.visible {
+  display: block;
+}
+.zip-callout strong {
+  color: var(--green);
+}
 </style>
 </head>
 <body>
@@ -646,8 +709,14 @@ footer {
               <input type="tel" id="phone" placeholder="(847) 555-0100" autocomplete="tel">
             </div>
             <div class="field">
-              <label for="zip">ZIP code</label>
-              <input type="text" id="zip" placeholder="60089" maxlength="5" autocomplete="postal-code">
+              <div class="zip-label-row">
+                <label for="zip" style="margin:0">ZIP code <span style="color:var(--muted);font-weight:300">(optional)</span></label>
+                <button type="button" class="info-btn" id="zip-info-btn" aria-label="Why we ask for your ZIP code">i</button>
+              </div>
+              <div class="zip-callout" id="zip-callout">
+                <strong>Why this helps:</strong> Some recalls only affect certain states or regions. Your ZIP lets us filter out alerts that never reached your area — so you only hear about recalls that are actually relevant to you. It also helps us show local grocers how many households near their stores are enrolled. Completely optional.
+              </div>
+              <input type="text" id="zip" placeholder="60089" maxlength="5" autocomplete="postal-code" style="margin-top:0.5rem">
             </div>
           </div>
 
@@ -946,7 +1015,27 @@ document.getElementById('phone').addEventListener('input', function() {
   else if (v.length >= 3) v = `(${v.slice(0,3)}) ${v.slice(3)}`;
   this.value = v;
 });
+
+// ── ZIP INFO TOOLTIP ──────────────────────────────────────────
+const zipInfoBtn = document.getElementById('zip-info-btn');
+const zipCallout = document.getElementById('zip-callout');
+if (zipInfoBtn && zipCallout) {
+  zipInfoBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    const isVisible = zipCallout.classList.contains('visible');
+    zipCallout.classList.toggle('visible', !isVisible);
+    zipInfoBtn.classList.toggle('active', !isVisible);
+    zipInfoBtn.setAttribute('aria-expanded', String(!isVisible));
+  });
+  // Close if clicking outside
+  document.addEventListener('click', function(e) {
+    if (!zipInfoBtn.contains(e.target) && !zipCallout.contains(e.target)) {
+      zipCallout.classList.remove('visible');
+      zipInfoBtn.classList.remove('active');
+    }
+  });
+}
+
 </script>
 </body>
 </html>
- 
