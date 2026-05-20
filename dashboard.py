@@ -122,81 +122,100 @@ def api_run_match(customers: list, recalls_raw: list) -> tuple:
 
 st.markdown("""
 <style>
-    .stApp { background-color: #0c0c0f; color: #e8e8f0; }
-    .block-container { padding-top: 2rem; }
-    .ng-header { background: linear-gradient(135deg,#13131a,#1a1a24); border-left:5px solid #c0392b; padding:1.5rem 2rem; border-radius:8px; margin-bottom:2rem; }
-    .ng-header h1 { color:#c0392b; font-size:2.2rem; margin:0; letter-spacing:2px; }
-    .ng-header p  { color:#9090a8; margin:0.4rem 0 0; font-size:0.9rem; }
-    .stat-box { background:#13131a; border:1px solid #22222e; border-radius:8px; padding:1rem; text-align:center; }
-    .stat-number { font-size:1.9rem; font-weight:bold; color:#c0392b; }
-    .stat-number.green  { color:#27ae60; }
-    .stat-number.amber  { color:#d4830a; }
-    .stat-number.purple { color:#8e44ad; }
-    .stat-number.blue   { color:#2980b9; }
-    .stat-number.teal   { color:#16a085; }
-    .stat-number.pink   { color:#e91e8c; }
-    .stat-label { font-size:0.72rem; color:#55556a; text-transform:uppercase; letter-spacing:1px; margin-top:4px; }
-    .recall-card { background:#13131a; border:1px solid #22222e; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.6rem; }
-    .recall-card.c1 { border-left:4px solid #c0392b; }
-    .recall-card.c2 { border-left:4px solid #d4830a; }
-    .recall-card.c3 { border-left:4px solid #27ae60; }
-    .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:bold; }
-    .b1 { background:#c0392b; color:white; }
-    .b2 { background:#d4830a; color:#0c0c0f; }
-    .b3 { background:#27ae60; color:#0c0c0f; }
-    .src-fda  { background:#1a3a6e; color:#93b4f0; font-size:0.66rem; padding:1px 7px; border-radius:10px; }
-    .src-usda { background:#1a3a26; color:#86d9a0; font-size:0.66rem; padding:1px 7px; border-radius:10px; }
-    .upc-badge    { background:#2d1b69; color:#c4b5fd; font-size:0.66rem; padding:1px 7px; border-radius:10px; font-weight:bold; }
-    .ing-badge    { background:#1a2e3a; color:#7ec8e3; font-size:0.66rem; padding:1px 7px; border-radius:10px; }
-    .allergen-badge { background:#3a0a1a; color:#f4a0c0; font-size:0.66rem; padding:1px 7px; border-radius:10px; font-weight:bold; }
-    .bayes-badge  { background:#1a1a3a; color:#93b4f0; font-size:0.66rem; padding:1px 7px; border-radius:10px; }
-    .traj-badge   { background:#3a2a0a; color:#f4d03f; font-size:0.66rem; padding:1px 7px; border-radius:10px; font-weight:bold; }
-    .hh-badge     { background:#1a3a2a; color:#86d9a0; font-size:0.66rem; padding:1px 7px; border-radius:10px; }
+    /* NoshGuard — Light Theme */
+    .stApp { background-color: #F7F4EE; color: #1a1a1a; }
+    .block-container { padding-top: 1.5rem; }
+    /* Header */
+    .ng-header { background: #1B4332; padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 1.25rem; display:flex; align-items:center; justify-content:space-between; }
+    .ng-header h1 { color: white; font-size: 1.4rem; margin: 0; font-weight: 500; letter-spacing:0.2px; }
+    .ng-header p  { color: rgba(255,255,255,0.65); margin: 0.2rem 0 0; font-size: 0.78rem; }
+    /* Stat boxes */
+    .stat-box { background: white; border: 1px solid #E8E3D9; border-radius: 10px; padding: 1rem 1.1rem; text-align: left; }
+    .stat-number { font-size: 1.75rem; font-weight: 600; color: #1B4332; line-height: 1; }
+    .stat-number.red    { color: #C0392B; }
+    .stat-number.amber  { color: #E07A1B; }
+    .stat-number.green  { color: #2D6A4F; }
+    .stat-number.blue   { color: #2471A3; }
+    .stat-number.teal   { color: #138D75; }
+    .stat-number.purple { color: #6B2FA0; }
+    .stat-number.pink   { color: #C0397A; }
+    .stat-label { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 6px; }
+    /* Recall cards */
+    .recall-card { background: white; border: 1px solid #E8E3D9; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 0.6rem; }
+    .recall-card.c1 { border-left: 4px solid #C0392B; }
+    .recall-card.c2 { border-left: 4px solid #E07A1B; }
+    .recall-card.c3 { border-left: 4px solid #2D6A4F; }
+    /* Badges */
+    .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600; }
+    .b1 { background:#FDE8E8; color:#C0392B; }
+    .b2 { background:#FEF0E0; color:#A05A10; }
+    .b3 { background:#E8F5EC; color:#1B5E3B; }
+    .src-fda  { background:#EBF0FB; color:#2C4E9E; font-size:0.66rem; padding:1px 7px; border-radius:10px; }
+    .src-usda { background:#E8F5EC; color:#1B5E3B; font-size:0.66rem; padding:1px 7px; border-radius:10px; }
+    .upc-badge    { background:#EEE8F8; color:#5B21B6; font-size:0.66rem; padding:1px 7px; border-radius:10px; font-weight:bold; }
+    .ing-badge    { background:#EBF3F8; color:#0E4D6B; font-size:0.66rem; padding:1px 7px; border-radius:10px; }
+    .allergen-badge { background:#FDE8F2; color:#9D1A5C; font-size:0.66rem; padding:1px 7px; border-radius:10px; font-weight:bold; }
+    .bayes-badge  { background:#EBF0FB; color:#2C4E9E; font-size:0.66rem; padding:1px 7px; border-radius:10px; }
+    .traj-badge   { background:#FEF5E0; color:#856404; font-size:0.66rem; padding:1px 7px; border-radius:10px; font-weight:bold; }
+    .hh-badge     { background:#E8F5EC; color:#1B5E3B; font-size:0.66rem; padding:1px 7px; border-radius:10px; }
+    /* Match cards */
     .match-card { border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; border:1px solid; }
-    .match-card.sev1 { background:#1a0808; border-color:#c0392b; }
-    .match-card.sev2 { background:#1a1208; border-color:#d4830a; }
-    .match-card.sev3 { background:#081a0c; border-color:#27ae60; }
-    .match-card.allergen { background:#1a0010; border-color:#e91e8c; }
-    .match-name { font-weight:bold; font-size:1rem; }
-    .sev1 .match-name { color:#c0392b; }
-    .sev2 .match-name { color:#d4830a; }
-    .sev3 .match-name { color:#27ae60; }
-    .allergen .match-name { color:#e91e8c; }
-    .match-detail { color:#9090a8; font-size:0.83rem; margin-top:3px; }
-    .conf-bar-bg { background:#22222e; border-radius:4px; height:5px; margin-top:3px; }
-    .signal-tag { display:inline-block; background:#13131a; border:1px solid #22222e; color:#9090a8; font-size:0.67rem; padding:1px 6px; border-radius:10px; margin:2px 2px 0 0; }
-    .signal-tag.upc      { background:#2d1b69; border-color:#8e44ad; color:#c4b5fd; font-weight:bold; }
-    .signal-tag.tax      { background:#1a2e1a; border-color:#27ae60; color:#86d9a0; }
-    .signal-tag.ing      { background:#1a2e3a; border-color:#2980b9; color:#7ec8e3; }
-    .signal-tag.allergen { background:#3a0a1a; border-color:#e91e8c; color:#f4a0c0; font-weight:bold; }
-    .signal-tag.bayes    { background:#1a1a3a; border-color:#2980b9; color:#93b4f0; }
-    .signal-tag.traj     { background:#3a2a0a; border-color:#d4ac0a; color:#f4d03f; font-weight:bold; }
-    .signal-tag.hh       { background:#1a3a2a; border-color:#27ae60; color:#86d9a0; }
-    .signal-tag.fp       { background:#2e1a0a; border-color:#d4830a; color:#f4a261; }
-    .signal-tag.decay    { background:#2e2a1a; border-color:#d4ac0a; color:#f4d03f; }
-    .allergen-card { background:#1a0010; border:1px solid #e91e8c; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; }
-    .bayes-card   { background:#0a0a1a; border:1px solid #2980b9; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; }
-    .traj-card    { background:#1a1200; border:1px solid #d4ac0a; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; }
-    .hh-card      { background:#0a1a10; border:1px solid #27ae60; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; }
-    .loyalty-card { background:#13131a; border:1px solid #22222e; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; }
-    .item-tag { display:inline-block; background:#0c0c0f; border:1px solid #22222e; color:#9090a8; font-size:0.7rem; padding:2px 7px; border-radius:10px; margin:2px 2px 0 0; }
-    .item-tag.flagged   { background:#2a0a0a; border-color:#c0392b; color:#c0392b; font-weight:bold; }
-    .item-tag.allergen  { background:#3a0010; border-color:#e91e8c; color:#f4a0c0; font-weight:bold; }
+    .match-card.sev1 { background:#FDF5F5; border-color:#E8BABA; border-left:4px solid #C0392B; border-radius:0 8px 8px 0; }
+    .match-card.sev2 { background:#FDF8F2; border-color:#F0D9BB; border-left:4px solid #E07A1B; border-radius:0 8px 8px 0; }
+    .match-card.sev3 { background:#F5FAF6; border-color:#BAD9C4; border-left:4px solid #2D6A4F; border-radius:0 8px 8px 0; }
+    .match-card.allergen { background:#FDF0F7; border-color:#E8BBD9; border-left:4px solid #C0397A; border-radius:0 8px 8px 0; }
+    .match-name { font-weight:600; font-size:0.95rem; color:#1a1a1a; }
+    .sev1 .match-name { color:#C0392B; }
+    .sev2 .match-name { color:#A05A10; }
+    .sev3 .match-name { color:#1B5E3B; }
+    .allergen .match-name { color:#C0397A; }
+    .match-detail { color:#666; font-size:0.83rem; margin-top:3px; }
+    .conf-bar-bg { background:#E8E3D9; border-radius:4px; height:5px; margin-top:3px; }
+    /* Signal tags */
+    .signal-tag { display:inline-block; background:#F5F0E8; border:1px solid #E8E3D9; color:#666; font-size:0.67rem; padding:1px 6px; border-radius:10px; margin:2px 2px 0 0; }
+    .signal-tag.upc      { background:#EEE8F8; border-color:#C4B5FD; color:#5B21B6; font-weight:bold; }
+    .signal-tag.tax      { background:#E8F5EC; border-color:#86D9A0; color:#1B5E3B; }
+    .signal-tag.ing      { background:#EBF3F8; border-color:#7EC8E3; color:#0E4D6B; }
+    .signal-tag.allergen { background:#FDE8F2; border-color:#F8A0C4; color:#9D1A5C; font-weight:bold; }
+    .signal-tag.bayes    { background:#EBF0FB; border-color:#A8C0F0; color:#2C4E9E; }
+    .signal-tag.traj     { background:#FEF5E0; border-color:#F4D03F; color:#856404; font-weight:bold; }
+    .signal-tag.hh       { background:#E8F5EC; border-color:#86D9A0; color:#1B5E3B; }
+    .signal-tag.fp       { background:#FEF0E0; border-color:#F4A261; color:#7A3C00; }
+    .signal-tag.decay    { background:#FEFAE0; border-color:#F4D03F; color:#7A6000; }
+    /* Specialty cards */
+    .allergen-card { background:#FDF0F7; border:1px solid #E8BBD9; border-left:4px solid #C0397A; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; }
+    .bayes-card    { background:#EBF0FB; border:1px solid #A8C0F0; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; }
+    .traj-card     { background:#FEF5E0; border:1px solid #F0D080; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; }
+    .hh-card       { background:#E8F5EC; border:1px solid #86D9A0; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; }
+    .loyalty-card  { background:white; border:1px solid #E8E3D9; border-radius:8px; padding:0.85rem 1rem; margin-bottom:0.7rem; }
+    /* Item tags */
+    .item-tag { display:inline-block; background:#F5F0E8; border:1px solid #E8E3D9; color:#666; font-size:0.7rem; padding:2px 7px; border-radius:10px; margin:2px 2px 0 0; }
+    .item-tag.flagged   { background:#FDE8E8; border-color:#E8BABA; color:#C0392B; font-weight:bold; }
+    .item-tag.allergen  { background:#FDE8F2; border-color:#E8BBD9; color:#9D1A5C; font-weight:bold; }
+    /* Alert history */
     .alert-sent { padding:0.5rem 0.85rem; border-radius:6px; margin-bottom:5px; font-size:0.82rem; border:1px solid; }
-    .alert-sent.sev1 { background:#1a0808; border-color:#c0392b; color:#c0392b; }
-    .alert-sent.sev2 { background:#1a1208; border-color:#d4830a; color:#d4830a; }
-    .alert-sent.allergen-alert { background:#1a0010; border-color:#e91e8c; color:#e91e8c; }
-    .traj-upgrade { background:#2a1a00; border:1px solid #d4ac0a; border-radius:6px; padding:0.45rem 0.7rem; font-size:0.76rem; color:#f4d03f; margin-top:4px; }
+    .alert-sent.sev1 { background:#FDE8E8; border-color:#E8BABA; color:#C0392B; }
+    .alert-sent.sev2 { background:#FEF0E0; border-color:#F0D9BB; color:#A05A10; }
+    .alert-sent.allergen-alert { background:#FDE8F2; border-color:#E8BBD9; color:#9D1A5C; }
+    .traj-upgrade { background:#FEF5E0; border:1px solid #F0D080; border-radius:6px; padding:0.45rem 0.7rem; font-size:0.76rem; color:#856404; margin-top:4px; }
     .prob-bar { height:8px; border-radius:4px; margin-top:3px; }
-    .timeline-event { background:#13131a; border:1px solid #22222e; border-radius:8px; padding:0.75rem 1rem; margin-bottom:0.5rem; border-left:3px solid; }
-    .timeline-event.t1 { border-left-color:#c0392b; }
-    .timeline-event.t2 { border-left-color:#d4830a; }
-    .timeline-event.t3 { border-left-color:#27ae60; }
+    .timeline-event { background:white; border:1px solid #E8E3D9; border-radius:8px; padding:0.75rem 1rem; margin-bottom:0.5rem; border-left:3px solid; }
+    .timeline-event.t1 { border-left-color:#C0392B; }
+    .timeline-event.t2 { border-left-color:#E07A1B; }
+    .timeline-event.t3 { border-left-color:#2D6A4F; }
     .outcome-tag { display:inline-block; font-size:0.68rem; padding:1px 7px; border-radius:10px; margin-top:4px; margin-right:4px; }
-    .ot-notified { background:#1a2e1a; color:#86d9a0; border:1px solid #27ae60; }
-    .ot-returned { background:#1a2a3a; color:#7ec8e3; border:1px solid #2980b9; }
-    .ot-pending  { background:#2e2a1a; color:#f4d03f; border:1px solid #d4ac0a; }
-    hr { border-color:#22222e; }
+    .ot-notified { background:#E8F5EC; color:#1B5E3B; border:1px solid #86D9A0; }
+    .ot-returned { background:#EBF3F8; color:#0E4D6B; border:1px solid #7EC8E3; }
+    .ot-pending  { background:#FEFAE0; color:#856404; border:1px solid #F4D03F; }
+    hr { border-color:#E8E3D9; }
+    /* Streamlit overrides */
+    .stTabs [data-baseweb="tab-list"] { gap:2px; background:#EAE5DC; padding:4px; border-radius:8px; margin-bottom:8px; }
+    .stTabs [data-baseweb="tab"] { border-radius:6px; padding:5px 12px; font-size:0.82rem; color:#666; background:transparent; }
+    .stTabs [aria-selected="true"] { background:white !important; color:#1B4332 !important; font-weight:500; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+    .stButton > button { border-radius:20px; font-size:0.85rem; }
+    .stButton > button[kind="primary"] { background:#1B4332; border-color:#1B4332; color:white; }
+    .stButton > button[kind="primary"]:hover { background:#2D6A4F; border-color:#2D6A4F; }
+    div[data-testid="stMetric"] { background:white; border:1px solid #E8E3D9; border-radius:10px; padding:0.75rem 1rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1558,7 +1577,7 @@ def _build_email_html(match):
     if allergen:
         allergen_block = f"""
         <div style="background:#fff0f5;border:2px solid #e91e8c;border-radius:8px;padding:16px;margin:16px 0">
-            <strong style="color:#e91e8c;font-size:16px">🚨 ALLERGEN ALERT</strong><br>
+            <strong style="color:#C0397A;font-size:16px">🚨 ALLERGEN ALERT</strong><br>
             <span style="color:#7f1d4f">You have a known <strong>{allergen}</strong> allergy on file.
             Do NOT consume this product. Seek medical advice if you have already consumed it.</span>
         </div>"""
@@ -1567,7 +1586,7 @@ def _build_email_html(match):
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
         <div style="background:#1a1a18;padding:24px 32px;border-bottom:4px solid #c0392b">
             <span style="color:#c0392b;font-size:22px;font-weight:bold;letter-spacing:2px">🛡️ NOSHGUARD</span>
-            <div style="color:#9090a8;font-size:12px;margin-top:4px">Food Recall Alert System</div>
+            <div style="color:#666;font-size:12px;margin-top:4px">Food Recall Alert System</div>
         </div>
         <div style="padding:32px">
             <p style="font-size:16px;color:#1a1a18">Hi {first},</p>
@@ -1577,7 +1596,7 @@ def _build_email_html(match):
             </p>
             {allergen_block}
             <div style="background:#f8f8f6;border-left:4px solid #c0392b;padding:16px;margin:20px 0;border-radius:0 8px 8px 0">
-                <div style="font-size:12px;color:#9090a8;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Recalled product</div>
+                <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Recalled product</div>
                 <div style="font-size:16px;font-weight:bold;color:#1a1a18">{product}</div>
                 <div style="font-size:13px;color:#4a4a46;margin-top:6px"><strong>Reason:</strong> {reason}</div>
                 <div style="font-size:13px;color:#4a4a46;margin-top:4px"><strong>Severity:</strong> {cls}</div>
@@ -1593,7 +1612,7 @@ def _build_email_html(match):
                 You are receiving this because your purchase history matched an active FDA/USDA recall.
             </p>
             <hr style="border:none;border-top:1px solid #e8e8e4;margin:24px 0">
-            <p style="color:#9090a8;font-size:11px;line-height:1.6">
+            <p style="color:#666;font-size:11px;line-height:1.6">
                 NoshGuard · Food Recall Detection & Notification<br>
                 To unsubscribe from recall alerts, reply to this email with STOP.<br>
                 This alert was sent on behalf of {store}.
@@ -2510,8 +2529,10 @@ if not matches and all_recalls:
 
 st.markdown("""
 <div class="ng-header">
-    <h1>🛡️ NOSHGUARD</h1>
-    <p>v8 &nbsp;·&nbsp; Background polling · Parallel engine · Live recall detection · Auto-refresh every 15 min</p>
+    <div>
+        <h1>🛡️ NoshGuard</h1>
+        <p>Chicago Metro Beta &nbsp;·&nbsp; Grocer dashboard &nbsp;·&nbsp; Auto-refreshes every 15 min</p>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -2521,21 +2542,21 @@ next_str = next_poll.strftime("%I:%M:%S %p") if next_poll else "soon"
 status_color = {"live":"#27ae60","error":"#c0392b","initializing":"#d4830a"}.get(poll_status,"#d4830a")
 new_badge = f'&nbsp;<span style="background:#c0392b;color:white;font-size:0.66rem;padding:2px 8px;border-radius:10px;font-weight:bold">🔴 {len(new_recall_ids)} NEW</span>' if new_recall_ids else ""
 
+mins_ago = int((datetime.now() - last_poll).total_seconds() / 60) if last_poll else None
+ago_str = f"{mins_ago}m ago" if mins_ago is not None and mins_ago < 60 else (last_str if last_poll else "pending")
 col_status, col_btn = st.columns([5,1])
 with col_status:
-    st.markdown(f"""<div style="background:#13131a;border:1px solid #22222e;border-radius:8px;padding:0.6rem 1rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="width:8px;height:8px;border-radius:50%;background:{status_color};flex-shrink:0"></div>
-        <span style="font-size:0.78rem;color:#9090a8">
-            Polling: <strong style="color:{status_color}">{poll_status.upper()}</strong>
-            &nbsp;·&nbsp; Last check: <strong style="color:#e8e8f0">{last_str}</strong>
-            &nbsp;·&nbsp; Next: <strong style="color:#e8e8f0">{next_str}</strong>
-            &nbsp;·&nbsp; {poll_count} poll{"s" if poll_count!=1 else ""} completed
+    st.markdown(f"""<div style="background:white;border:1px solid #E8E3D9;border-radius:8px;padding:0.5rem 1rem;display:flex;align-items:center;gap:10px">
+        <div style="width:8px;height:8px;border-radius:50%;background:{status_color.replace("#27ae60","#2D6A4F").replace("#d4830a","#E07A1B")};flex-shrink:0"></div>
+        <span style="font-size:0.8rem;color:#666">
+            Last checked: <strong style="color:#1a1a1a">{ago_str}</strong>
+            &nbsp;·&nbsp; Next: <strong style="color:#1a1a1a">{next_str}</strong>
             {new_badge}
         </span>
     </div>""", unsafe_allow_html=True)
 with col_btn:
-    if st.button("🔄 Check Now", use_container_width=True):
-        with st.spinner("Polling FDA + USDA..."):
+    if st.button("Refresh", use_container_width=True):
+        with st.spinner("Checking for new recalls..."):
             force_poll_now()
         st.rerun()
 
@@ -2550,14 +2571,12 @@ high_bayes        = sum(1 for m in matches if m["bayes_prob"] >= 0.75)
 multi_hh          = sum(1 for hh in hh_matches if len(set(m["recall"]["cluster_id"] or m["recall"]["product"][:20] for m in hh["matches"])) > 1)
 high_risk_rec     = sum(1 for r in all_recalls if "Class I" in r["cls"] and "II" not in r["cls"])
 
-cols = st.columns(6)
+cols = st.columns(4)
 kpis = [
-    (len(matches),"At risk",""),
-    (allergen_alerts,"🚨 Allergen alerts","pink"),
-    (upc_matches,"UPC verified","green"),
-    (f'{benchmark.get("elapsed_ms","--")}ms',"Engine runtime","teal"),
-    (f'{benchmark.get("throughput",0):,}/s',"Pairs/sec","blue"),
-    (len(hh_matches),"Households","purple"),
+    (len(matches), "Households at risk", "red" if len(matches) > 0 else ""),
+    (allergen_alerts, "Allergen alerts", "red" if allergen_alerts > 0 else ""),
+    (len(hh_matches), "Enrolled households", ""),
+    (ago_str if last_poll else "pending", "Last checked", ""),
 ]
 for col,(n,label,cls) in zip(cols,kpis):
     with col:
@@ -2756,7 +2775,7 @@ def generate_pilot_report(
   .header-top{{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}}
   .logo{{font-size:0.65rem;letter-spacing:3px;text-transform:uppercase;color:#c0392b;margin-bottom:0.5rem;font-family:'IBM Plex Mono',monospace}}
   .title{{font-size:1.8rem;font-weight:600;color:#f8f8f6;line-height:1.2}}
-  .subtitle{{font-size:0.9rem;color:#9090a8;margin-top:0.4rem}}
+  .subtitle{{font-size:0.9rem;color:#666;margin-top:0.4rem}}
   .header-meta{{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:#6a6a64;line-height:2}}
   .header-meta strong{{color:#c0c0b8}}
 
@@ -2771,19 +2790,19 @@ def generate_pilot_report(
   .kpi-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}}
   .kpi{{background:#f8f8f6;border:1px solid #e8e8e4;border-radius:6px;padding:1rem;text-align:center}}
   .kpi-n{{font-size:1.8rem;font-weight:600;color:#c0392b;line-height:1}}
-  .kpi-l{{font-size:0.65rem;color:#9090a8;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px}}
+  .kpi-l{{font-size:0.65rem;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px}}
 
   .callout{{background:#1a1a18;color:#e8e8e0;border-radius:6px;padding:1.25rem 1.5rem;margin:1.5rem 0}}
   .callout-label{{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:#c0392b;margin-bottom:0.4rem}}
   .callout-text{{font-size:0.95rem;line-height:1.6;color:#e8e8e0}}
 
   table{{width:100%;border-collapse:collapse;font-size:13px}}
-  th{{background:#f2f2ee;padding:8px 12px;text-align:left;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:#9090a8;font-weight:500;border-bottom:1px solid #e8e8e4}}
+  th{{background:#f2f2ee;padding:8px 12px;text-align:left;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:#666;font-weight:500;border-bottom:1px solid #e8e8e4}}
   td{{border-bottom:1px solid #f2f2ee}}
   tr:last-child td{{border-bottom:none}}
 
   .badge{{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold}}
-  .pass{{color:#27ae60}}.warn{{color:#d4830a}}.fail{{color:#c0392b}}
+  .pass{{color:#2D6A4F}}.warn{{color:#E07A1B}}.fail{{color:#c0392b}}
 
   .assessment{{background:#f8f8f6;border:1px solid #e8e8e4;border-radius:6px;padding:1rem 1.25rem;margin-top:1rem}}
   .ass-score{{font-size:1.4rem;font-weight:600}}
@@ -2857,7 +2876,7 @@ def generate_pilot_report(
 
     <table>
       <thead><tr><th>Match type</th><th>Count</th><th>% of matches</th></tr></thead>
-      <tbody>{match_type_rows if match_type_rows else "<tr><td colspan='3' style='padding:12px;color:#9090a8;text-align:center'>No matches recorded yet — send alerts from the Dashboard tab to populate</td></tr>"}</tbody>
+      <tbody>{match_type_rows if match_type_rows else "<tr><td colspan='3' style='padding:12px;color:#666;text-align:center'>No matches recorded yet — send alerts from the Dashboard tab to populate</td></tr>"}</tbody>
     </table>
 
     <div style="margin-top:1rem;font-size:0.82rem;color:#4a4a46;line-height:1.6">
@@ -2879,7 +2898,7 @@ def generate_pilot_report(
       <thead><tr><th>Time</th><th>Customer</th><th>Product recalled</th><th>Severity</th><th>Match type</th><th>Score · Priority</th></tr></thead>
       <tbody>{alert_rows}</tbody>
     </table>
-    {"<p style='font-size:0.78rem;color:#9090a8;margin-top:8px'>Showing most recent 20 alerts. Full log available in noshguard.db.</p>" if len(alert_hist) > 20 else ""}
+    {"<p style='font-size:0.78rem;color:#666;margin-top:8px'>Showing most recent 20 alerts. Full log available in noshguard.db.</p>" if len(alert_hist) > 20 else ""}
   </div>
 
   <hr class="divider">
@@ -2891,7 +2910,7 @@ def generate_pilot_report(
 
     <table style="margin-bottom:1rem">
       <thead><tr><th>Poll time</th><th>Recalls found</th><th>Matches found</th><th>Engine runtime</th><th>Status</th></tr></thead>
-      <tbody>{poll_rows if poll_rows else "<tr><td colspan='5' style='padding:12px;color:#9090a8;text-align:center'>Poll history populates after the first 15-minute polling cycle completes</td></tr>"}</tbody>
+      <tbody>{poll_rows if poll_rows else "<tr><td colspan='5' style='padding:12px;color:#666;text-align:center'>Poll history populates after the first 15-minute polling cycle completes</td></tr>"}</tbody>
     </table>
 
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
@@ -2972,13 +2991,12 @@ else:
     mode_label = f"🟡 Demo mode · {len(CUSTOMERS)} simulated customers · Upload CSV to use real data"
 
 # Mode badge in sidebar area
-st.markdown(f"""<div style="background:{"#0a1a0a" if data_mode=="real" else "#1a1a0a"};
-    border:1px solid {"#27ae60" if data_mode=="real" else "#d4830a"};
-    border-radius:8px;padding:0.6rem 1rem;margin-bottom:1rem;
-    font-size:0.82rem;color:{"#27ae60" if data_mode=="real" else "#d4830a"}">
-    {"🟢" if data_mode=="real" else "🟡"} <strong>{"REAL DATA MODE" if data_mode=="real" else "DEMO MODE"}</strong>
+st.markdown(f"""<div style="background:{"#E8F5EC" if data_mode=="real" else "#FEF8E0"};
+    border:1px solid {"#86D9A0" if data_mode=="real" else "#F0D080"};
+    border-radius:8px;padding:0.5rem 1rem;margin-bottom:1rem;
+    font-size:0.82rem;color:{"#1B5E3B" if data_mode=="real" else "#856404"}">
+    {"🟢" if data_mode=="real" else "🟡"} <strong>{"Real data active" if data_mode=="real" else "Demo mode"}</strong>
     &nbsp;·&nbsp; {mode_label}
-    {"&nbsp;·&nbsp;<a href='#' style='color:#c0392b;font-size:0.76rem' onclick=''>clear</a>" if data_mode=="real" else ""}
 </div>""", unsafe_allow_html=True)
 
 # Re-run engine against active customer set if real data loaded
@@ -3107,8 +3125,8 @@ def enroll_via_api(name: str, email: str, phone: str, zip_code: str,
         return {"enrolled": False, "error": str(e)[:120]}
 
 tab1,tab2,tab3,tab4,tab5,tab6,tab7,tab8,tab9,tab10,tab11 = st.tabs([
-    "📊 Dashboard","📂 Upload Data","📷 Receipt Scan","🚨 Allergen","🎯 Bayesian","📈 Trajectory",
-    "🏠 Households","🔬 Engine v8","⚡ Performance","📈 History","📄 Pilot Report"
+    "🔔 Alerts","📂 Upload Data","📷 Scan Receipt","⚠️ Allergen","🎯 Scoring","📈 Trends",
+    "🏠 Households","⚙️ Engine","📊 Performance","📋 History","📄 Pilot Report"
 ])
 
 
@@ -3153,12 +3171,12 @@ with tab1:
                 f"<span class='badge {src_cls}'>{src}</span>&nbsp;"
                 f"<span class='badge {bc}'>{bl}</span>"
                 f"{upc_span}{traj_span}{alg_span}{new_span}"
-                f"<span style='font-size:0.64rem;color:#55556a;margin-left:auto'>{date}</span>"
+                f"<span style='font-size:0.64rem;color:#888;margin-left:auto'>{date}</span>"
                 f"</div>"
-                f"<strong style='color:#e8e8f0;font-size:0.86rem;display:block;margin:4px 0 2px'>{prod_trunc}</strong>"
-                f"<span style='color:#9090a8;font-size:0.76rem'>{firm_trunc}</span><br>"
-                f"<span style='color:#55556a;font-size:0.74rem'>{reason_trunc}</span>"
-                f"<div style='margin-top:4px;background:#22222e;border-radius:3px;height:3px'>"
+                f"<strong style='color:#1a1a1a;font-size:0.86rem;display:block;margin:4px 0 2px'>{prod_trunc}</strong>"
+                f"<span style='color:#555;font-size:0.76rem'>{firm_trunc}</span><br>"
+                f"<span style='color:#888;font-size:0.74rem'>{reason_trunc}</span>"
+                f"<div style='margin-top:4px;background:#E8E3D9;border-radius:3px;height:3px'>"
                 f"<div style='width:{vs}%;background:{vc};height:3px;border-radius:3px'></div>"
                 f"</div>"
                 f"{traj_detail}"
@@ -3182,10 +3200,10 @@ with tab1:
                 sv,bc,bl=_sev(m["recall"]["cls"])
                 is_allergen=m.get("allergen_triggered")
                 card_class="allergen" if is_allergen else sv
-                name_color="#e91e8c" if is_allergen else {"sev1":"#c0392b","sev2":"#d4830a","sev3":"#27ae60"}.get(sv,"#e8e8f0")
+                name_color="#C0397A" if is_allergen else {"sev1":"#C0392B","sev2":"#A05A10","sev3":"#1B5E3B"}.get(sv,"#1a1a1a")
                 icons={"upc":"🔵","taxonomy":"🌿","ingredient":"🧪","allergen":"🚨","keyword":"⚠️"}
                 icon=icons.get(m["match_type"],"⚠️")
-                pri_color="#e91e8c" if is_allergen else "#c0392b" if m["priority"]>=70 else "#d4830a" if m["priority"]>=50 else "#27ae60"
+                pri_color="#C0397A" if is_allergen else "#C0392B" if m["priority"]>=70 else "#E07A1B" if m["priority"]>=50 else "#2D6A4F"
 
                 extras=""
                 if is_allergen: extras+=f'<span class="allergen-badge">🚨 {m["allergen_name"]} allergy</span>&nbsp;'
@@ -3198,19 +3216,19 @@ with tab1:
                     <div style="display:flex;justify-content:space-between">
                         <div class="match-name" style="color:{name_color}">{icon} {m["customer"]["name"]}</div>
                         <div style="text-align:right">
-                            <div style="font-size:0.64rem;color:#55556a">{"🚨 ALLERGEN" if is_allergen else "Priority"}</div>
+                            <div style="font-size:0.64rem;color:#888">{"🚨 ALLERGEN" if is_allergen else "Priority"}</div>
                             <div style="font-size:1.2rem;font-weight:bold;color:{pri_color}">{m["priority"]}</div>
                         </div>
                     </div>
                     <div class="match-detail">🏪 {m["customer"]["store"]}</div>
-                    <div class="match-detail" style="color:#e8e8f0">{m["recall"]["product"][:60]}{"…" if len(m["recall"]["product"])>60 else ""}</div>
+                    <div class="match-detail" style="color:#1a1a1a">{m["recall"]["product"][:60]}{"…" if len(m["recall"]["product"])>60 else ""}</div>
                     <div style="margin-top:4px">{extras}</div>
-                    <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:0.68rem;color:#55556a">
-                        <div>Match (decayed)<br><span style="color:{"#c0392b" if m["decayed_score"]>=70 else "#d4830a"};font-weight:bold">{m["decayed_score"]}%</span></div>
-                        <div>P(still home)<br><span style="color:{"#c0392b" if m["bayes_prob"]>=0.75 else "#d4830a"};font-weight:bold">{m["bayes_prob"]:.0%}</span></div>
-                        <div>Velocity<br><span style="color:{"#c0392b" if m["vel_score"]>=75 else "#d4830a"};font-weight:bold">{m["vel_label"]}</span></div>
+                    <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:0.68rem;color:#888">
+                        <div>Match (decayed)<br><span style="color:{"#C0392B" if m["decayed_score"]>=70 else "#E07A1B"};font-weight:bold">{m["decayed_score"]}%</span></div>
+                        <div>P(still home)<br><span style="color:{"#C0392B" if m["bayes_prob"]>=0.75 else "#E07A1B"};font-weight:bold">{m["bayes_prob"]:.0%}</span></div>
+                        <div>Velocity<br><span style="color:{"#C0392B" if m["vel_score"]>=75 else "#E07A1B"};font-weight:bold">{m["vel_label"]}</span></div>
                     </div>
-                    <div style="margin-top:4px;font-size:0.72rem;color:#55556a">📣 {_channels(m["recall"]["cls"],is_allergen)}</div>
+                    <div style="margin-top:4px;font-size:0.72rem;color:#888">📣 {_channels(m["recall"]["cls"],is_allergen)}</div>
                     {f'<div class="traj-upgrade" style="margin-top:4px">📈 {" · ".join(m["traj_reasons"][:2])}</div>' if m.get("traj_reasons") else ""}
                 </div>""",unsafe_allow_html=True)
 
@@ -3261,9 +3279,9 @@ with tab1:
                     sv, bc, bl  = _sev(m["recall"]["cls"])
                     is_a        = m.get("allergen_triggered")
                     icon        = {"upc":"🔵","allergen":"🚨","ingredient":"🧪","taxonomy":"🌿"}.get(m["match_type"],"⚠️")
-                    card_color  = "#1a0010" if is_a else {"sev1":"#1a0808","sev2":"#1a1208","sev3":"#081a0c"}.get(sv,"#13131a")
-                    border_color= "#e91e8c" if is_a else {"sev1":"#c0392b","sev2":"#d4830a","sev3":"#27ae60"}.get(sv,"#22222e")
-                    name_color  = "#e91e8c" if is_a else {"sev1":"#c0392b","sev2":"#d4830a","sev3":"#27ae60"}.get(sv,"#e8e8f0")
+                    card_color  = "#FDF0F7" if is_a else {"sev1":"#FDF5F5","sev2":"#FDF8F2","sev3":"#F5FAF6"}.get(sv,"white")
+                    border_color= "#E8BBD9" if is_a else {"sev1":"#E8BABA","sev2":"#F0D9BB","sev3":"#BAD9C4"}.get(sv,"#E8E3D9")
+                    name_color  = "#C0397A" if is_a else {"sev1":"#C0392B","sev2":"#A05A10","sev3":"#1B5E3B"}.get(sv,"#1a1a1a")
                     approve_key = m["customer"]["id"] + "|" + m["recall"].get("cluster_id","x")
                     is_approved = st.session_state["ng_approvals"].get(approve_key, None)
 
@@ -3275,12 +3293,12 @@ with tab1:
                             f"border-radius:8px;padding:0.75rem 1rem;margin-bottom:4px'>"
                             f"<div style='display:flex;justify-content:space-between;align-items:center'>"
                             f"<strong style='color:{name_color}'>{icon} {m['customer']['name']}</strong>"
-                            f"<span style='font-size:0.7rem;color:#55556a'>P{m['priority']} · {m['decayed_score']}% confidence</span>"
+                            f"<span style='font-size:0.7rem;color:#888'>P{m['priority']} · {m['decayed_score']}% confidence</span>"
                             f"</div>"
-                            f"<div style='font-size:0.78rem;color:#9090a8;margin-top:3px'>"
+                            f"<div style='font-size:0.78rem;color:#666;margin-top:3px'>"
                             f"{m['recall']['product'][:60]}{'…' if len(m['recall']['product'])>60 else ''}"
                             f"</div>"
-                            f"<div style='font-size:0.72rem;color:#55556a;margin-top:2px'>"
+                            f"<div style='font-size:0.72rem;color:#888;margin-top:2px'>"
                             f"{bl} · {icon} {m['match_type']} · "
                             f"{'🚨 ALLERGEN ' if is_a else ''}"
                             f"{_channels(m['recall']['cls'], is_a)}"
@@ -3383,12 +3401,12 @@ with tab2:
             loaded_at = upload_meta.get("loaded_at","")
             try: loaded_fmt = datetime.fromisoformat(loaded_at).strftime("%b %d %I:%M %p")
             except: loaded_fmt = loaded_at[:16]
-            st.markdown(f"""<div style="background:#0a1a0a;border:1px solid #27ae60;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem">
+            st.markdown(f"""<div style="background:#E8F5EC;border:1px solid #27ae60;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem">
                 <div style="display:flex;justify-content:space-between;align-items:center">
-                    <div style="font-size:0.88rem;font-weight:500;color:#27ae60">🟢 Real data active</div>
-                    <div style="font-size:0.68rem;color:#55556a">{loaded_fmt}</div>
+                    <div style="font-size:0.88rem;font-weight:500;color:#2D6A4F">🟢 Real data active</div>
+                    <div style="font-size:0.68rem;color:#888">{loaded_fmt}</div>
                 </div>
-                <div style="font-size:0.78rem;color:#9090a8;margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                <div style="font-size:0.78rem;color:#666;margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:4px">
                     <div>📄 {upload_meta.get("filename","CSV")}</div>
                     <div>👥 {upload_meta.get("valid_rows",0):,} customers</div>
                     <div>📊 {upload_meta.get("raw_rows",0):,} rows in file</div>
@@ -3454,30 +3472,30 @@ with tab2:
                 qual_color = "#27ae60" if qual_score>=70 else "#d4830a" if qual_score>=40 else "#c0392b"
                 qual_label = "Excellent" if qual_score>=70 else "Good" if qual_score>=40 else "Limited"
 
-                st.markdown(f"""<div style="background:#13131a;border:1px solid #22222e;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem">
+                st.markdown(f"""<div style="background:white;border:1px solid #E8E3D9;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                        <div style="font-size:0.88rem;font-weight:500;color:#27ae60">✅ {n:,} customers parsed</div>
+                        <div style="font-size:0.88rem;font-weight:500;color:#2D6A4F">✅ {n:,} customers parsed</div>
                         <div style="font-size:0.78rem;color:{qual_color};font-weight:bold">Data quality: {qual_label} ({qual_score}/100)</div>
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:0.72rem;color:#55556a">
-                        <div style="background:#0c0c0f;border-radius:4px;padding:6px;text-align:center">
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:0.72rem;color:#888">
+                        <div style="background:#F7F4EE;border-radius:4px;padding:6px;text-align:center">
                             <div style="font-size:1rem;font-weight:bold;color:{"#27ae60" if upc_pct>=50 else "#d4830a"}">{upc_pct}%</div>
                             <div>UPC coverage</div>
                         </div>
-                        <div style="background:#0c0c0f;border-radius:4px;padding:6px;text-align:center">
+                        <div style="background:#F7F4EE;border-radius:4px;padding:6px;text-align:center">
                             <div style="font-size:1rem;font-weight:bold;color:{"#27ae60" if date_pct>=50 else "#d4830a"}">{date_pct}%</div>
                             <div>Date coverage</div>
                         </div>
-                        <div style="background:#0c0c0f;border-radius:4px;padding:6px;text-align:center">
+                        <div style="background:#F7F4EE;border-radius:4px;padding:6px;text-align:center">
                             <div style="font-size:1rem;font-weight:bold;color:{"#27ae60" if has_email/n>=0.5 else "#d4830a"}">{int(has_email/n*100)}%</div>
                             <div>Email coverage</div>
                         </div>
-                        <div style="background:#0c0c0f;border-radius:4px;padding:6px;text-align:center">
+                        <div style="background:#F7F4EE;border-radius:4px;padding:6px;text-align:center">
                             <div style="font-size:1rem;font-weight:bold;color:{"#27ae60" if has_phone/n>=0.5 else "#d4830a"}">{int(has_phone/n*100)}%</div>
                             <div>Phone coverage</div>
                         </div>
                     </div>
-                    <div style="font-size:0.72rem;color:#55556a;margin-top:6px">
+                    <div style="font-size:0.72rem;color:#888;margin-top:6px">
                         {parse_result["raw_rows"]:,} rows · {parse_result["valid_rows"]:,} valid · {parse_result["skipped"]:,} skipped · Mode: {parse_result["mode"]}
                         {"· ⚠️ Low UPC coverage means keyword-only matching — less precise" if upc_pct < 30 else "· 🔵 UPC data present — exact matching available"}
                     </div>
@@ -3498,27 +3516,27 @@ with tab2:
                 cm1, cm2 = st.columns(2)
                 with cm1:
                     for field, col_name in list(mapped.items())[:8]:
-                        st.markdown(f"<span style='color:#27ae60'>✅</span> `{col_name}` → **{field}**", unsafe_allow_html=True)
+                        st.markdown(f"<span style='color:#2D6A4F'>✅</span> `{col_name}` → **{field}**", unsafe_allow_html=True)
                 with cm2:
                     for col_name in unmapped_cols[:8]:
-                        st.markdown(f"<span style='color:#55556a'>—</span> `{col_name}` *(ignored)*", unsafe_allow_html=True)
+                        st.markdown(f"<span style='color:#888'>—</span> `{col_name}` *(ignored)*", unsafe_allow_html=True)
                     if len(unmapped_cols) > 8:
                         st.caption(f"+ {len(unmapped_cols)-8} more ignored columns")
 
                 # ── CUSTOMER PREVIEW ──
                 with st.expander(f"👥 Preview — first {min(5,n)} customers"):
                     for c in customers[:5]:
-                        upc_badge = f"<span style='color:#8e44ad;font-size:0.68rem'>🔵 {len(c['upcs'])} UPC(s)</span>" if c.get("upcs") else "<span style='color:#55556a;font-size:0.68rem'>no UPC</span>"
+                        upc_badge = f"<span style='color:#8e44ad;font-size:0.68rem'>🔵 {len(c['upcs'])} UPC(s)</span>" if c.get("upcs") else "<span style='color:#888;font-size:0.68rem'>no UPC</span>"
                         st.markdown(f"""<div class="loyalty-card" style="padding:0.6rem 0.85rem;margin-bottom:4px">
                             <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
-                                <strong style="color:#e8e8f0;font-size:0.86rem">{c["name"]}</strong>
-                                <span style="font-size:0.7rem;color:#55556a">{c["store"][:30]}</span>
+                                <strong style="color:#1a1a1a;font-size:0.86rem">{c["name"]}</strong>
+                                <span style="font-size:0.7rem;color:#888">{c["store"][:30]}</span>
                             </div>
-                            <div style="font-size:0.74rem;color:#9090a8;margin-top:2px">
+                            <div style="font-size:0.74rem;color:#666;margin-top:2px">
                                 {c["email"]} · {c["category"]} · {c["purchase_freq"]}
                                 &nbsp;{upc_badge}
                             </div>
-                            <div style="font-size:0.7rem;color:#55556a;margin-top:2px">
+                            <div style="font-size:0.7rem;color:#888;margin-top:2px">
                                 {", ".join(c["purchases"][:3])}{"..." if len(c["purchases"])>3 else ""}
                             </div>
                         </div>""", unsafe_allow_html=True)
@@ -3552,7 +3570,7 @@ with tab2:
                                 f"<div class='match-card {sv}' style='padding:0.55rem 0.85rem;margin-bottom:4px'>"
                                 f"<strong style='font-size:0.86rem'>{m['customer']['name']}</strong>"
                                 f"&nbsp;<span class='badge {bc}'>{bl}</span>"
-                                f"<div style='font-size:0.76rem;color:#9090a8;margin-top:2px'>"
+                                f"<div style='font-size:0.76rem;color:#666;margin-top:2px'>"
                                 f"{m['recall']['product'][:60]} · {m['match_type']} · {m['score']}%"
                                 f"</div></div>",
                                 unsafe_allow_html=True
@@ -3588,7 +3606,7 @@ with tab2:
 
     with ul_right:
         st.markdown("**Download sample CSV template**")
-        st.markdown("""<div style="font-size:0.82rem;color:#9090a8;margin-bottom:0.75rem;line-height:1.6">
+        st.markdown("""<div style="font-size:0.82rem;color:#666;margin-bottom:0.75rem;line-height:1.6">
             Not sure about the format? Download this sample template — it shows the column names
             and data structure the engine works with best.
         </div>""", unsafe_allow_html=True)
@@ -3604,19 +3622,19 @@ with tab2:
 
         st.markdown("<br>**Supported column names (auto-detected)**",unsafe_allow_html=True)
         for field, aliases in list(COLUMN_ALIASES.items())[:8]:
-            st.markdown(f"""<div style="font-size:0.74rem;padding:4px 0;border-bottom:1px solid #22222e;display:flex;gap:8px">
-                <span style="color:#e8e8f0;width:100px;flex-shrink:0">{field}</span>
-                <span style="color:#55556a">{" · ".join(aliases[:4])}{"..." if len(aliases)>4 else ""}</span>
+            st.markdown(f"""<div style="font-size:0.74rem;padding:4px 0;border-bottom:1px solid #E8E3D9;display:flex;gap:8px">
+                <span style="color:#1a1a1a;width:100px;flex-shrink:0">{field}</span>
+                <span style="color:#888">{" · ".join(aliases[:4])}{"..." if len(aliases)>4 else ""}</span>
             </div>""", unsafe_allow_html=True)
 
         st.markdown("<br>**What gets extracted per customer**",unsafe_allow_html=True)
         for item in ["Unique ID + contact info","All purchased products","UPC barcodes for exact matching",
                      "Purchase dates for time decay","Food category auto-detection","Purchase frequency estimation"]:
-            st.markdown(f"<span style='color:#27ae60'>✅</span> <span style='font-size:0.82rem;color:#9090a8'>{item}</span>",
+            st.markdown(f"<span style='color:#2D6A4F'>✅</span> <span style='font-size:0.82rem;color:#666'>{item}</span>",
                         unsafe_allow_html=True)
 
         st.markdown("<br>**Data security**",unsafe_allow_html=True)
-        st.markdown("""<div style="background:#13131a;border:1px solid #22222e;border-radius:8px;padding:0.75rem;font-size:0.78rem;color:#9090a8;line-height:1.6">
+        st.markdown("""<div style="background:white;border:1px solid #E8E3D9;border-radius:8px;padding:0.75rem;font-size:0.78rem;color:#666;line-height:1.6">
             🔒 Uploaded data stays in your browser session only.<br>
             Never transmitted to any external server.<br>
             Cleared when you close the browser tab.<br>
@@ -3658,9 +3676,9 @@ with tab3:
             key="rc_uploader"
         )
 
-        st.markdown("""<div style='background:#13131a;border:1px solid #22222e;border-radius:8px;
-            padding:0.75rem;font-size:0.78rem;color:#9090a8;margin-top:1rem;line-height:1.6'>
-            💡 <strong style='color:#e8e8f0'>Tips for best results:</strong><br>
+        st.markdown("""<div style='background:white;border:1px solid #E8E3D9;border-radius:8px;
+            padding:0.75rem;font-size:0.78rem;color:#666;margin-top:1rem;line-height:1.6'>
+            💡 <strong style='color:#1a1a1a'>Tips for best results:</strong><br>
             · Lay receipt flat, good lighting<br>
             · Full receipt in frame, not cropped<br>
             · App/email screenshots work great<br>
@@ -3787,8 +3805,8 @@ with tab3:
                                         st.markdown(
                                             f"<div class='match-card {sv.replace('sev','c')}' style='margin-top:6px'>"
                                             f"<span class='badge {bc}'>{bl}</span>&nbsp;"
-                                            f"<span style='font-size:0.86rem;color:#e8e8f0'>{a['product'][:70]}</span><br>"
-                                            f"<span style='font-size:0.74rem;color:#9090a8'>Confidence: {a['confidence']}%</span>"
+                                            f"<span style='font-size:0.86rem;color:#1a1a1a'>{a['product'][:70]}</span><br>"
+                                            f"<span style='font-size:0.74rem;color:#666'>Confidence: {a['confidence']}%</span>"
                                             f"</div>",
                                             unsafe_allow_html=True
                                         )
@@ -3801,8 +3819,8 @@ with tab3:
                             else:
                                 st.error(f"Enrollment failed: {enroll_result.get('error','Unknown error')}")
         else:
-            st.markdown("""<div style='background:#13131a;border:1px solid #22222e;border-radius:8px;
-                padding:2rem;text-align:center;color:#55556a'>
+            st.markdown("""<div style='background:white;border:1px solid #E8E3D9;border-radius:8px;
+                padding:2rem;text-align:center;color:#888'>
                 <div style='font-size:2rem;margin-bottom:0.5rem'>📷</div>
                 <div style='font-size:0.88rem'>Upload a receipt photo on the left<br>
                 Claude will extract your grocery items automatically</div>
@@ -3815,10 +3833,10 @@ with tab3:
                 ("3. Review", "Edit the list if anything was misread"),
                 ("4. Enroll", "One click — you're in the system. Future recalls notify you automatically"),
             ]:
-                st.markdown(f"""<div style='border:1px solid #22222e;border-radius:6px;
+                st.markdown(f"""<div style='border:1px solid #E8E3D9;border-radius:6px;
                     padding:0.6rem 0.85rem;margin-bottom:5px'>
                     <span style='color:#c0392b;font-weight:bold;font-size:0.82rem'>{step}</span>
-                    <span style='color:#9090a8;font-size:0.82rem'> — {detail}</span>
+                    <span style='color:#666;font-size:0.82rem'> — {detail}</span>
                 </div>""", unsafe_allow_html=True)
 
 # TAB 4: ALLERGEN ENGINE
@@ -3835,19 +3853,19 @@ with tab4:
         for m in allergen_list:
             st.markdown(f"""<div class="allergen-card">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <div style="font-size:1.1rem;font-weight:bold;color:#e91e8c">🚨 {m["customer"]["name"]}</div>
+                    <div style="font-size:1.1rem;font-weight:bold;color:#C0397A">🚨 {m["customer"]["name"]}</div>
                     <span class="allergen-badge">KNOWN {m["allergen_name"].upper()} ALLERGY</span>
-                    <span style="margin-left:auto;font-size:0.7rem;color:#55556a">Priority: 99 (max)</span>
+                    <span style="margin-left:auto;font-size:0.7rem;color:#888">Priority: 99 (max)</span>
                 </div>
                 <div class="match-detail">🏪 {m["customer"]["store"]} · {m["customer"]["date"]}</div>
-                <div style="margin-top:6px;background:#22222e;border-radius:6px;padding:0.6rem 0.75rem">
-                    <div style="font-size:0.76rem;color:#f4a0c0">Recall: {m["recall"]["product"][:70]}</div>
-                    <div style="font-size:0.74rem;color:#9090a8;margin-top:2px">{m["recall"]["reason"][:90]}</div>
+                <div style="margin-top:6px;background:#E8E3D9;border-radius:6px;padding:0.6rem 0.75rem">
+                    <div style="font-size:0.76rem;color:#9D1A5C">Recall: {m["recall"]["product"][:70]}</div>
+                    <div style="font-size:0.74rem;color:#666;margin-top:2px">{m["recall"]["reason"][:90]}</div>
                 </div>
-                <div style="margin-top:8px;font-size:0.8rem;background:#2a001a;border-radius:6px;padding:0.6rem 0.75rem;color:#f4a0c0">
+                <div style="margin-top:8px;font-size:0.8rem;background:#FDE8F2;border-radius:6px;padding:0.6rem 0.75rem;color:#9D1A5C">
                     ⚠️ Allergen alert overrides all other scoring — this customer is notified first, via all channels, with allergen-specific messaging.
                 </div>
-                <div style="margin-top:6px;font-size:0.74rem;color:#55556a">
+                <div style="margin-top:6px;font-size:0.74rem;color:#888">
                     📣 {_channels(m["recall"]["cls"],True)}<br>
                     Message: {_urgency(m["recall"]["cls"],m["allergen_name"])}
                 </div>
@@ -3859,8 +3877,8 @@ with tab4:
         tags="".join([f'<span class="signal-tag allergen">⚠️ {a}</span>' for a in allergens]) if allergens else '<span class="signal-tag">none on file</span>'
         st.markdown(f"""<div class="loyalty-card" style="padding:0.6rem 0.85rem">
             <div style="display:flex;justify-content:space-between;align-items:center">
-                <strong style="color:#e8e8f0">{c["name"]}</strong>
-                <span style="font-size:0.72rem;color:#55556a">{c["store"]}</span>
+                <strong style="color:#1a1a1a">{c["name"]}</strong>
+                <span style="font-size:0.72rem;color:#888">{c["store"]}</span>
             </div>
             <div style="margin-top:4px">{tags}</div>
         </div>""",unsafe_allow_html=True)
@@ -3907,18 +3925,18 @@ These are different risk profiles. The engine now knows the difference.""")
             st.markdown(f"""<div class="bayes-card">
                 <div style="display:flex;justify-content:space-between;align-items:center">
                     <div>
-                        <div style="font-size:0.88rem;font-weight:500;color:#e8e8f0">{m["customer"]["name"]}</div>
-                        <div style="font-size:0.74rem;color:#9090a8">{m["customer"]["category"]} · {m["customer"]["purchase_freq"]} shopper · {m["customer"]["days_since_purchase"]}d ago</div>
+                        <div style="font-size:0.88rem;font-weight:500;color:#1a1a1a">{m["customer"]["name"]}</div>
+                        <div style="font-size:0.74rem;color:#666">{m["customer"]["category"]} · {m["customer"]["purchase_freq"]} shopper · {m["customer"]["days_since_purchase"]}d ago</div>
                     </div>
                     <div style="text-align:right">
                         <div style="font-size:1.3rem;font-weight:bold;color:{bar_c}">{prob:.0%}</div>
-                        <div style="font-size:0.68rem;color:#55556a">{label}</div>
+                        <div style="font-size:0.68rem;color:#888">{label}</div>
                     </div>
                 </div>
-                <div style="margin-top:6px;background:#22222e;border-radius:3px;height:6px">
+                <div style="margin-top:6px;background:#E8E3D9;border-radius:3px;height:6px">
                     <div style="width:{prob*100}%;background:{bar_c};height:6px;border-radius:3px"></div>
                 </div>
-                <div style="font-size:0.68rem;color:#55556a;margin-top:3px">{m["bayes_explanation"]}</div>
+                <div style="font-size:0.68rem;color:#888;margin-top:3px">{m["bayes_explanation"]}</div>
             </div>""",unsafe_allow_html=True)
 
 
@@ -3940,23 +3958,23 @@ with tab6:
             st.markdown(f"""<div class="traj-card">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                     <span class="traj-badge">📈 {traj["upgrade_type"].upper()}</span>
-                    <span style="font-size:0.76rem;color:#f4d03f">Upgraded: {traj["upgraded_date"]}</span>
+                    <span style="font-size:0.76rem;color:#856404">Upgraded: {traj["upgraded_date"]}</span>
                 </div>
-                <div style="font-size:0.9rem;font-weight:500;color:#e8e8f0;margin:5px 0 3px">{m["recall"]["product"][:75]}</div>
-                <div style="font-size:0.76rem;color:#9090a8">{traj["reason"]}</div>
+                <div style="font-size:0.9rem;font-weight:500;color:#1a1a1a;margin:5px 0 3px">{m["recall"]["product"][:75]}</div>
+                <div style="font-size:0.76rem;color:#666">{traj["reason"]}</div>
                 <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.76rem">
-                    <div style="background:#0c0c0f;border-radius:6px;padding:0.5rem">
-                        <div style="color:#55556a">Original</div>
-                        <div style="color:#9090a8">{traj["original_cls"]} · {traj["original_scope"]}</div>
-                        <div style="color:#9090a8">{traj["original_units"]:,} units</div>
+                    <div style="background:#F7F4EE;border-radius:6px;padding:0.5rem">
+                        <div style="color:#888">Original</div>
+                        <div style="color:#666">{traj["original_cls"]} · {traj["original_scope"]}</div>
+                        <div style="color:#666">{traj["original_units"]:,} units</div>
                     </div>
-                    <div style="background:#0c0c0f;border-radius:6px;padding:0.5rem;border:1px solid #d4ac0a">
-                        <div style="color:#f4d03f">Current</div>
-                        <div style="color:#e8e8f0;font-weight:500">{traj["current_cls"]} · {traj["current_scope"]}</div>
-                        <div style="color:#e8e8f0;font-weight:500">{traj["current_units"]:,} units</div>
+                    <div style="background:#F7F4EE;border-radius:6px;padding:0.5rem;border:1px solid #d4ac0a">
+                        <div style="color:#856404">Current</div>
+                        <div style="color:#1a1a1a;font-weight:500">{traj["current_cls"]} · {traj["current_scope"]}</div>
+                        <div style="color:#1a1a1a;font-weight:500">{traj["current_units"]:,} units</div>
                     </div>
                 </div>
-                <div style="margin-top:8px;font-size:0.78rem;color:#f4d03f">
+                <div style="margin-top:8px;font-size:0.78rem;color:#856404">
                     ⚡ {m["customer"]["name"]} — score boosted: {m["score"]-sum(10 for _ in m.get("traj_reasons",[]))}% → {m["score"]}%
                     · {" · ".join(m["traj_reasons"])}
                 </div>
@@ -3995,21 +4013,21 @@ with tab7:
             st.markdown(f"""<div class="hh-card" style="border-color:{border_c}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
                     <div>
-                        <div style="font-size:0.9rem;font-weight:bold;color:#e8e8f0">🏠 {hh_info["name"]}</div>
-                        <div style="font-size:0.74rem;color:#9090a8">📍 {hh_info["address"]}</div>
-                        <div style="font-size:0.74rem;color:#9090a8;margin-top:2px">Members: {" · ".join(members_set)}</div>
+                        <div style="font-size:0.9rem;font-weight:bold;color:#1a1a1a">🏠 {hh_info["name"]}</div>
+                        <div style="font-size:0.74rem;color:#666">📍 {hh_info["address"]}</div>
+                        <div style="font-size:0.74rem;color:#666;margin-top:2px">Members: {" · ".join(members_set)}</div>
                     </div>
                     <div style="text-align:right">
-                        <div style="font-size:0.64rem;color:#55556a">Household priority</div>
+                        <div style="font-size:0.64rem;color:#888">Household priority</div>
                         <div style="font-size:1.2rem;font-weight:bold;color:{"#e91e8c" if allergen_members else "#27ae60"}">{hh["highest_priority"]}</div>
                     </div>
                 </div>
-                {f'<div style="margin-top:6px;background:#2a001a;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.76rem;color:#f4a0c0">🚨 Allergen alert for: {", ".join(allergen_members)}</div>' if allergen_members else ""}
+                {f'<div style="margin-top:6px;background:#FDE8F2;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.76rem;color:#9D1A5C">🚨 Allergen alert for: {", ".join(allergen_members)}</div>' if allergen_members else ""}
                 <div style="margin-top:8px">
-                    <div style="font-size:0.72rem;color:#55556a;margin-bottom:4px">Combined household exposure ({len(unique_recalls)} recall event{"s" if len(unique_recalls)>1 else ""}):</div>
-                    {"".join([f'<div style="font-size:0.78rem;color:#e8e8f0;padding:3px 0;border-bottom:1px solid #22222e">· {r["product"][:65]}</div>' for r in unique_recalls])}
+                    <div style="font-size:0.72rem;color:#888;margin-bottom:4px">Combined household exposure ({len(unique_recalls)} recall event{"s" if len(unique_recalls)>1 else ""}):</div>
+                    {"".join([f'<div style="font-size:0.78rem;color:#1a1a1a;padding:3px 0;border-bottom:1px solid #E8E3D9">· {r["product"][:65]}</div>' for r in unique_recalls])}
                 </div>
-                <div style="margin-top:8px;font-size:0.74rem;color:#55556a">
+                <div style="margin-top:8px;font-size:0.74rem;color:#888">
                     💡 Single consolidated household alert sent to all members — not {len(members_set)} separate notifications.
                     {"Allergen protocol triggered for sensitive members." if allergen_members else ""}
                 </div>
@@ -4072,31 +4090,31 @@ Result: 10M → 20 calculations. Zero redundancy.""")
     with col_b:
         st.markdown(f"**Live engine run — {benchmark['pairs_evaluated']} pairs**")
         st.markdown(f"""<div class="match-card sev1" style="padding:1rem">
-            <div style="font-size:0.72rem;color:#55556a;font-family:monospace;margin-bottom:8px">ENGINE BENCHMARK</div>
+            <div style="font-size:0.72rem;color:#888;font-family:monospace;margin-bottom:8px">ENGINE BENCHMARK</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.76rem">
-                <div style="background:#0c0c0f;border-radius:6px;padding:0.6rem;text-align:center">
-                    <div style="color:#55556a">Total runtime</div>
-                    <div style="font-size:1.4rem;font-weight:bold;color:#27ae60">{benchmark['elapsed_ms']}ms</div>
+                <div style="background:#F7F4EE;border-radius:6px;padding:0.6rem;text-align:center">
+                    <div style="color:#888">Total runtime</div>
+                    <div style="font-size:1.4rem;font-weight:bold;color:#2D6A4F">{benchmark['elapsed_ms']}ms</div>
                 </div>
-                <div style="background:#0c0c0f;border-radius:6px;padding:0.6rem;text-align:center">
-                    <div style="color:#55556a">Pairs/second</div>
+                <div style="background:#F7F4EE;border-radius:6px;padding:0.6rem;text-align:center">
+                    <div style="color:#888">Pairs/second</div>
                     <div style="font-size:1.4rem;font-weight:bold;color:#2980b9">{benchmark['throughput']:,}</div>
                 </div>
-                <div style="background:#0c0c0f;border-radius:6px;padding:0.6rem;text-align:center">
-                    <div style="color:#55556a">Pairs evaluated</div>
-                    <div style="font-size:1.4rem;font-weight:bold;color:#e8e8f0">{benchmark['pairs_evaluated']}</div>
+                <div style="background:#F7F4EE;border-radius:6px;padding:0.6rem;text-align:center">
+                    <div style="color:#888">Pairs evaluated</div>
+                    <div style="font-size:1.4rem;font-weight:bold;color:#1a1a1a">{benchmark['pairs_evaluated']}</div>
                 </div>
-                <div style="background:#0c0c0f;border-radius:6px;padding:0.6rem;text-align:center">
-                    <div style="color:#55556a">Matches found</div>
+                <div style="background:#F7F4EE;border-radius:6px;padding:0.6rem;text-align:center">
+                    <div style="color:#888">Matches found</div>
                     <div style="font-size:1.4rem;font-weight:bold;color:#c0392b">{benchmark['matches_found']}</div>
                 </div>
-                <div style="background:#0c0c0f;border-radius:6px;padding:0.6rem;text-align:center">
-                    <div style="color:#55556a">Thread workers</div>
+                <div style="background:#F7F4EE;border-radius:6px;padding:0.6rem;text-align:center">
+                    <div style="color:#888">Thread workers</div>
                     <div style="font-size:1.4rem;font-weight:bold;color:#8e44ad">{benchmark['workers']}</div>
                 </div>
-                <div style="background:#0c0c0f;border-radius:6px;padding:0.6rem;text-align:center">
-                    <div style="color:#55556a">Customers</div>
-                    <div style="font-size:1.4rem;font-weight:bold;color:#e8e8f0">{benchmark['customers']}</div>
+                <div style="background:#F7F4EE;border-radius:6px;padding:0.6rem;text-align:center">
+                    <div style="color:#888">Customers</div>
+                    <div style="font-size:1.4rem;font-weight:bold;color:#1a1a1a">{benchmark['customers']}</div>
                 </div>
             </div>
         </div>""",unsafe_allow_html=True)
@@ -4138,15 +4156,15 @@ with tab9:
         st.markdown("**What the parallel engine changes for a pilot**")
         st.markdown(f"""<div class="match-card sev1">
             <div style="font-size:0.86rem;font-weight:500;color:#c0392b;margin-bottom:8px">The pilot success metric: &lt;10 min to first alert</div>
-            <div style="font-size:0.82rem;color:#9090a8;line-height:1.7">
+            <div style="font-size:0.82rem;color:#666;line-height:1.7">
                 With a sequential engine at 50,000 loyalty members:<br>
                 <span style="color:#c0392b">→ ~8 minutes just for matching</span><br><br>
                 With the v8 parallel engine at 50,000 members:<br>
-                <span style="color:#27ae60">→ ~12 seconds for matching</span><br><br>
+                <span style="color:#2D6A4F">→ ~12 seconds for matching</span><br><br>
                 The remaining time budget goes to:<br>
                 · FDA/USDA polling latency (~2 min)<br>
                 · Notification delivery (~30 sec)<br>
-                · <strong style="color:#e8e8f0">Total: under 3 minutes to first customer alert</strong>
+                · <strong style="color:#1a1a1a">Total: under 3 minutes to first customer alert</strong>
             </div>
         </div>""",unsafe_allow_html=True)
 
@@ -4160,11 +4178,11 @@ with tab9:
             icon = {"upc":"🔵","taxonomy":"🌿","ingredient":"🧪","allergen":"🚨","keyword":"⚠️"}.get(mt,"❓")
             pct = count/max(len(matches),1)*100
             st.markdown(f"""<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:0.82rem">
-                <span style="width:80px;color:#9090a8">{icon} {mt}</span>
-                <div style="flex:1;background:#22222e;border-radius:3px;height:8px">
+                <span style="width:80px;color:#666">{icon} {mt}</span>
+                <div style="flex:1;background:#E8E3D9;border-radius:3px;height:8px">
                     <div style="width:{pct}%;background:#c0392b;height:8px;border-radius:3px"></div>
                 </div>
-                <span style="color:#e8e8f0;width:40px;text-align:right">{count} ({pct:.0f}%)</span>
+                <span style="color:#1a1a1a;width:40px;text-align:right">{count} ({pct:.0f}%)</span>
             </div>""",unsafe_allow_html=True)
 
     with col2:
@@ -4181,21 +4199,21 @@ with tab9:
             pct = count/max(len(matches),1)*100
             color = "#c0392b" if bucket=="90-100" else "#d4830a" if bucket=="70-89" else "#27ae60"
             st.markdown(f"""<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:0.82rem">
-                <span style="width:60px;color:#9090a8;font-family:monospace">{bucket}</span>
-                <div style="flex:1;background:#22222e;border-radius:3px;height:8px">
+                <span style="width:60px;color:#666;font-family:monospace">{bucket}</span>
+                <div style="flex:1;background:#E8E3D9;border-radius:3px;height:8px">
                     <div style="width:{pct}%;background:{color};height:8px;border-radius:3px"></div>
                 </div>
-                <span style="color:#e8e8f0;width:40px;text-align:right">{count}</span>
+                <span style="color:#1a1a1a;width:40px;text-align:right">{count}</span>
             </div>""",unsafe_allow_html=True)
 
         st.markdown("<br>**Geo filter effectiveness**",unsafe_allow_html=True)
         geo_b = sum(1 for m in matches if m["geo_blocked"])
         geo_a = len(matches) - geo_b
         st.markdown(f"""<div class="match-card sev3" style="padding:0.75rem">
-            <div style="font-size:0.82rem;color:#9090a8">
-                <span style="color:#27ae60">✅ {geo_a} actionable alerts</span><br>
+            <div style="font-size:0.82rem;color:#666">
+                <span style="color:#2D6A4F">✅ {geo_a} actionable alerts</span><br>
                 <span style="color:#c8c800">🌍 {geo_b} geo-filtered (false positives prevented)</span><br>
-                <span style="color:#55556a;font-size:0.74rem;margin-top:4px;display:block">
+                <span style="color:#888;font-size:0.74rem;margin-top:4px;display:block">
                     False positive rate: {geo_b/max(len(matches),1)*100:.0f}% caught and suppressed
                 </span>
             </div>
@@ -4208,11 +4226,11 @@ with tab9:
         for label,count,color in [("≥75% likely home",high_p,"#c0392b"),("50–74% likely",mid_p,"#d4830a"),("<50% possibly consumed",low_p,"#27ae60")]:
             pct = count/max(len(matches),1)*100
             st.markdown(f"""<div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;font-size:0.78rem">
-                <span style="width:140px;color:#9090a8">{label}</span>
-                <div style="flex:1;background:#22222e;border-radius:3px;height:6px">
+                <span style="width:140px;color:#666">{label}</span>
+                <div style="flex:1;background:#E8E3D9;border-radius:3px;height:6px">
                     <div style="width:{pct}%;background:{color};height:6px;border-radius:3px"></div>
                 </div>
-                <span style="color:#e8e8f0;width:20px;text-align:right">{count}</span>
+                <span style="color:#1a1a1a;width:20px;text-align:right">{count}</span>
             </div>""",unsafe_allow_html=True)
 
 
@@ -4261,14 +4279,14 @@ with tab10:
                     st.markdown(f"""<div class="timeline-event {cc}">
                         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
                             <div>
-                                <span style="font-size:0.76rem;font-weight:500;color:#e8e8f0">{icon} {m["customer"]["name"]}</span>
+                                <span style="font-size:0.76rem;font-weight:500;color:#1a1a1a">{icon} {m["customer"]["name"]}</span>
                                 &nbsp;<span class="badge {bc}">{bl}</span>
-                                <span style="font-size:0.64rem;color:#55556a;margin-left:6px">PENDING APPROVAL</span>
+                                <span style="font-size:0.64rem;color:#888;margin-left:6px">PENDING APPROVAL</span>
                             </div>
-                            <span style="font-size:0.68rem;color:#55556a">P{m["priority"]} · {m["decayed_score"]}%</span>
+                            <span style="font-size:0.68rem;color:#888">P{m["priority"]} · {m["decayed_score"]}%</span>
                         </div>
-                        <div style="font-size:0.76rem;color:#9090a8;margin-top:3px">{m["recall"]["product"][:65]}</div>
-                        <div style="font-size:0.7rem;color:#55556a;margin-top:2px">
+                        <div style="font-size:0.76rem;color:#666;margin-top:3px">{m["recall"]["product"][:65]}</div>
+                        <div style="font-size:0.7rem;color:#888;margin-top:2px">
                             {_channels(m["recall"]["cls"],m.get("allergen_triggered",False))}
                         </div>
                     </div>""",unsafe_allow_html=True)
@@ -4284,7 +4302,7 @@ with tab10:
                 by_date[d].append(a)
 
             for date_label, day_alerts in list(by_date.items())[:10]:
-                st.markdown(f"<div style='font-size:0.68rem;color:#55556a;font-family:monospace;margin:12px 0 4px;text-transform:uppercase;letter-spacing:1px'>{date_label} · {len(day_alerts)} alert(s)</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size:0.68rem;color:#888;font-family:monospace;margin:12px 0 4px;text-transform:uppercase;letter-spacing:1px'>{date_label} · {len(day_alerts)} alert(s)</div>", unsafe_allow_html=True)
                 for a in day_alerts:
                     sv,bc,bl = _sev(a.get("recall_cls",""))
                     cc = {"Class I – High":"t1","Class II – Mod":"t2","Class III – Low":"t3"}.get(bl,"t3")
@@ -4297,13 +4315,13 @@ with tab10:
                     st.markdown(f"""<div class="timeline-event {cc}" style="margin-bottom:4px">
                         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
                             <div>
-                                <span style="font-size:0.78rem;font-weight:500;color:#e8e8f0">{icon} {a["customer_name"]}</span>
+                                <span style="font-size:0.78rem;font-weight:500;color:#1a1a1a">{icon} {a["customer_name"]}</span>
                                 &nbsp;<span class="badge {bc}">{bl}</span>
                             </div>
-                            <span style="font-size:0.68rem;color:#55556a;font-family:monospace">{sent_fmt}</span>
+                            <span style="font-size:0.68rem;color:#888;font-family:monospace">{sent_fmt}</span>
                         </div>
-                        <div style="font-size:0.78rem;color:#9090a8;margin-top:3px">{a["recall_product"][:70]}{"…" if len(a["recall_product"])>70 else ""}</div>
-                        <div style="font-size:0.7rem;color:#55556a;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap">
+                        <div style="font-size:0.78rem;color:#666;margin-top:3px">{a["recall_product"][:70]}{"…" if len(a["recall_product"])>70 else ""}</div>
+                        <div style="font-size:0.7rem;color:#888;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap">
                             <span>{a.get("channel","")[:40]}</span>
                             <span>Confidence: {a.get("match_score",0)}%</span>
                             <span>Priority: P{a.get("priority",0)}</span>
@@ -4348,13 +4366,13 @@ with tab10:
                 st.markdown(f"""<div class="loyalty-card" style="padding:0.55rem 0.85rem;margin-bottom:4px">
                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
                         <div>
-                            <span style="font-size:0.76rem;color:#e8e8f0">{fda_icon} {polled_fmt}</span>
+                            <span style="font-size:0.76rem;color:#1a1a1a">{fda_icon} {polled_fmt}</span>
                             {"&nbsp;<span style='background:#c0392b;color:white;font-size:0.62rem;padding:1px 6px;border-radius:8px'>"+str(new_r)+" NEW</span>" if new_r else ""}
                             {"&nbsp;<span style='color:#c0392b;font-size:0.68rem'>⚠️ error</span>" if err else ""}
                         </div>
                         <span style="font-size:0.72rem;font-weight:500;color:{ms_color}">{ms:.0f}ms</span>
                     </div>
-                    <div style="font-size:0.7rem;color:#55556a;margin-top:2px">
+                    <div style="font-size:0.7rem;color:#888;margin-top:2px">
                         {p.get("recalls_found",0)} recalls checked · {p.get("matches_found",0)} matches · {p.get("alerts_dispatched",0)} alerts sent
                         {" · <span style='color:#c0392b'>"+err[:50]+"</span>" if err else ""}
                     </div>
@@ -4454,8 +4472,8 @@ with tab11:
             "Recommended path to production",
         ]:
             st.markdown(
-                f"<span style='color:#27ae60'>✅</span> "
-                f"<span style='font-size:0.82rem;color:#9090a8'>{item}</span>",
+                f"<span style='color:#2D6A4F'>✅</span> "
+                f"<span style='font-size:0.82rem;color:#666'>{item}</span>",
                 unsafe_allow_html=True
             )
 
@@ -4556,7 +4574,7 @@ with tab11:
                 )
 
                 st.markdown(
-                    "<div style='font-size:0.78rem;color:#9090a8;margin:4px 0 12px'>"
+                    "<div style='font-size:0.78rem;color:#666;margin:4px 0 12px'>"
                     "💡 To convert to PDF: open the downloaded file in Chrome → "
                     "File → Print → Save as PDF. Looks great on paper."
                     "</div>",
@@ -4570,11 +4588,11 @@ with tab11:
 
         else:
             # Placeholder before generation
-            st.markdown("""<div style="background:#13131a;border:1px solid #22222e;border-radius:8px;
-                padding:2rem;text-align:center;color:#55556a;font-size:0.88rem">
+            st.markdown("""<div style="background:white;border:1px solid #E8E3D9;border-radius:8px;
+                padding:2rem;text-align:center;color:#888;font-size:0.88rem">
                 <div style="font-size:1.5rem;margin-bottom:0.5rem">📄</div>
                 Fill in the details on the left and click<br>
-                <strong style="color:#9090a8">Generate Report Now</strong><br>
+                <strong style="color:#666">Generate Report Now</strong><br>
                 to build your pilot deliverable.
             </div>""", unsafe_allow_html=True)
 
@@ -4587,11 +4605,11 @@ with tab11:
                 ("For internal sharing", "The report is self-contained HTML — it works without internet, no login required. The VP can forward it to their CMO as-is."),
             ]
             for title, detail in steps:
-                st.markdown(f"""<div style="border:1px solid #22222e;border-radius:8px;
+                st.markdown(f"""<div style="border:1px solid #E8E3D9;border-radius:8px;
                     padding:0.65rem 0.85rem;margin-bottom:6px">
-                    <div style="font-size:0.82rem;font-weight:500;color:#e8e8f0">{title}</div>
-                    <div style="font-size:0.76rem;color:#9090a8;margin-top:2px">{detail}</div>
+                    <div style="font-size:0.82rem;font-weight:500;color:#1a1a1a">{title}</div>
+                    <div style="font-size:0.76rem;color:#666;margin-top:2px">{detail}</div>
                 </div>""", unsafe_allow_html=True)
 
 st.markdown("<br><hr>",unsafe_allow_html=True)
-st.markdown('<div style="text-align:center;color:#22222e;font-size:0.7rem;padding:0.6rem 0">🛡️ NoshGuard v8 &nbsp;·&nbsp; API-unified · Parallel engine · Human review · Real notifications · Live recalls &nbsp;·&nbsp; <em>Protecting families — one notification at a time.</em></div>',unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;color:#888;font-size:0.7rem;padding:0.6rem 0">🛡️ NoshGuard &nbsp;·&nbsp; Chicago Metro Beta &nbsp;·&nbsp; <em>Protecting families — one notification at a time.</em></div>',unsafe_allow_html=True)
