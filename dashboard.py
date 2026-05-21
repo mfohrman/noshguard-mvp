@@ -2544,16 +2544,11 @@ new_badge = f'&nbsp;<span style="background:#c0392b;color:white;font-size:0.66re
 
 mins_ago = int((datetime.now() - last_poll).total_seconds() / 60) if last_poll else None
 ago_str = f"{mins_ago}m ago" if mins_ago is not None and mins_ago < 60 else (last_str if last_poll else "pending")
+# Pre-compute color to avoid nested-quote issue inside f-string
+dot_color = status_color.replace("#27ae60", "#2D6A4F").replace("#d4830a", "#E07A1B")
 col_status, col_btn = st.columns([5,1])
 with col_status:
-    st.markdown(f"""<div style="background:white;border:1px solid #E8E3D9;border-radius:8px;padding:0.5rem 1rem;display:flex;align-items:center;gap:10px">
-        <div style="width:8px;height:8px;border-radius:50%;background:{status_color.replace("#27ae60","#2D6A4F").replace("#d4830a","#E07A1B")};flex-shrink:0"></div>
-        <span style="font-size:0.8rem;color:#666">
-            Last checked: <strong style="color:#1a1a1a">{ago_str}</strong>
-            &nbsp;·&nbsp; Next: <strong style="color:#1a1a1a">{next_str}</strong>
-            {new_badge}
-        </span>
-    </div>""", unsafe_allow_html=True)
+    st.markdown(f'<div style="background:white;border:1px solid #E8E3D9;border-radius:8px;padding:0.5rem 1rem;display:flex;align-items:center;gap:10px"><div style="width:8px;height:8px;border-radius:50%;background:{dot_color};flex-shrink:0"></div><span style="font-size:0.8rem;color:#666">Last checked: <strong style="color:#1a1a1a">{ago_str}</strong> &nbsp;·&nbsp; Next: <strong style="color:#1a1a1a">{next_str}</strong> {new_badge}</span></div>', unsafe_allow_html=True)
 with col_btn:
     if st.button("Refresh", use_container_width=True):
         with st.spinner("Checking for new recalls..."):
@@ -2595,7 +2590,7 @@ st.caption(
     f"{bm_pairs} pairs evaluated · "
     f"{bm_workers} threads · "
     f"{bm_ms}ms · "
-    f"background polling every 15 min"
+    f"background polling every 2 min"
 )
 st.markdown("<br>",unsafe_allow_html=True)
 
