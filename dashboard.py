@@ -2531,7 +2531,7 @@ st.markdown("""
 <div class="ng-header">
     <div>
         <h1>🛡️ NoshGuard</h1>
-        <p>Chicago Metro Beta &nbsp;·&nbsp; Grocer dashboard &nbsp;·&nbsp; Auto-refreshes every 15 min</p>
+        <p>Chicago Metro Beta &nbsp;·&nbsp; Grocer dashboard &nbsp;·&nbsp; Auto-refreshes every 2 min</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -3207,25 +3207,33 @@ with tab1:
                 if m.get("household_id") and len(HOUSEHOLDS.get(m["household_id"],{}).get("members",[])) > 1:
                     extras+='<span class="hh-badge">🏠 multi-member HH</span>&nbsp;'
 
-                st.markdown(f"""<div class="match-card {card_class}">
-                    <div style="display:flex;justify-content:space-between">
-                        <div class="match-name" style="color:{name_color}">{icon} {m["customer"]["name"]}</div>
-                        <div style="text-align:right">
-                            <div style="font-size:0.64rem;color:#888">{"🚨 ALLERGEN" if is_allergen else "Priority"}</div>
-                            <div style="font-size:1.2rem;font-weight:bold;color:{pri_color}">{m["priority"]}</div>
-                        </div>
-                    </div>
-                    <div class="match-detail">🏪 {m["customer"]["store"]}</div>
-                    <div class="match-detail" style="color:#1a1a1a">{m["recall"]["product"][:60]}{"…" if len(m["recall"]["product"])>60 else ""}</div>
-                    <div style="margin-top:4px">{extras}</div>
-                    <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:0.68rem;color:#888">
-                        <div>Match (decayed)<br><span style="color:{"#C0392B" if m["decayed_score"]>=70 else "#E07A1B"};font-weight:bold">{m["decayed_score"]}%</span></div>
-                        <div>P(still home)<br><span style="color:{"#C0392B" if m["bayes_prob"]>=0.75 else "#E07A1B"};font-weight:bold">{m["bayes_prob"]:.0%}</span></div>
-                        <div>Velocity<br><span style="color:{"#C0392B" if m["vel_score"]>=75 else "#E07A1B"};font-weight:bold">{m["vel_label"]}</span></div>
-                    </div>
-                    <div style="margin-top:4px;font-size:0.72rem;color:#888">📣 {_channels(m["recall"]["cls"],is_allergen)}</div>
-                    {f'<div class="traj-upgrade" style="margin-top:4px">📈 {" · ".join(m["traj_reasons"][:2])}</div>' if m.get("traj_reasons") else ""}
-                </div>""",unsafe_allow_html=True)
+                # Pre-compute conditional values to avoid nested quotes inside f-string
+                alert_label   = "🚨 ALLERGEN" if is_allergen else "Priority"
+                prod_trunc    = m["recall"]["product"][:60] + ("…" if len(m["recall"]["product"]) > 60 else "")
+                match_color   = "#C0392B" if m["decayed_score"] >= 70 else "#E07A1B"
+                bayes_color   = "#C0392B" if m["bayes_prob"] >= 0.75 else "#E07A1B"
+                vel_color     = "#C0392B" if m["vel_score"] >= 75 else "#E07A1B"
+                traj_block    = f'<div class="traj-upgrade" style="margin-top:4px">📈 {" · ".join(m["traj_reasons"][:2])}</div>' if m.get("traj_reasons") else ""
+                channels_str  = _channels(m["recall"]["cls"], is_allergen)
+                st.markdown(
+                    f'<div class="match-card {card_class}">'
+                    f'<div style="display:flex;justify-content:space-between">'
+                    f'<div class="match-name" style="color:{name_color}">{icon} {m["customer"]["name"]}</div>'
+                    f'<div style="text-align:right"><div style="font-size:0.64rem;color:#888">{alert_label}</div>'
+                    f'<div style="font-size:1.2rem;font-weight:bold;color:{pri_color}">{m["priority"]}</div></div></div>'
+                    f'<div class="match-detail">🏪 {m["customer"]["store"]}</div>'
+                    f'<div class="match-detail" style="color:#1a1a1a">{prod_trunc}</div>'
+                    f'<div style="margin-top:4px">{extras}</div>'
+                    f'<div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:0.68rem;color:#888">'
+                    f'<div>Match (decayed)<br><span style="color:{match_color};font-weight:bold">{m["decayed_score"]}%</span></div>'
+                    f'<div>P(still home)<br><span style="color:{bayes_color};font-weight:bold">{m["bayes_prob"]:.0%}</span></div>'
+                    f'<div>Velocity<br><span style="color:{vel_color};font-weight:bold">{m["vel_label"]}</span></div>'
+                    f'</div>'
+                    f'<div style="margin-top:4px;font-size:0.72rem;color:#888">📣 {channels_str}</div>'
+                    f'{traj_block}'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
 
         non_blocked = [m for m in matches if not m["geo_blocked"]]
         if non_blocked:
