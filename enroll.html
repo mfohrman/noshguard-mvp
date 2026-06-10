@@ -744,6 +744,23 @@ footer {
   });
 </script>
 <!-- End Google Analytics -->
+
+<!-- UTM Parameter Capture -->
+<script>
+function getUTMParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    utm_source:   params.get('utm_source')   || '',
+    utm_medium:   params.get('utm_medium')   || '',
+    utm_campaign: params.get('utm_campaign') || '',
+    utm_content:  params.get('utm_content')  || '',
+    referrer:     document.referrer          || ''
+  };
+}
+// Store UTMs in sessionStorage so they survive form interactions
+const _utms = getUTMParams();
+if (_utms.utm_source) sessionStorage.setItem('ng_utms', JSON.stringify(_utms));
+</script>
 </head>
 <body>
 
@@ -1192,6 +1209,11 @@ form.addEventListener('submit', async function(e) {
   submitBtn.disabled = true;
 
   // Build enrollment payload
+  // Retrieve stored UTM params
+  const _storedUtms = JSON.parse(sessionStorage.getItem('ng_utms') || '{}');
+  const _currentUtms = getUTMParams();
+  const _utmData = Object.assign({}, _storedUtms, _currentUtms.utm_source ? _currentUtms : {});
+
   const payload = {
     name,
     email,
@@ -1199,6 +1221,11 @@ form.addEventListener('submit', async function(e) {
     zip_code: zip || '',
     purchases: [],
     notification_channels: phone ? ['sms', 'email'] : ['email'],
+    utm_source:   _utmData.utm_source   || '',
+    utm_medium:   _utmData.utm_medium   || '',
+    utm_campaign: _utmData.utm_campaign || '',
+    utm_content:  _utmData.utm_content  || '',
+    referrer:     _utmData.referrer     || document.referrer || '',
   };
 
   // If receipt file uploaded, try to extract products via Claude vision
