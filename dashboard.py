@@ -2955,7 +2955,7 @@ def generate_pilot_report(
     <div style="font-size:0.88rem;color:#4a4a46;line-height:1.8">
       <p style="margin-bottom:0.75rem"><strong>1. Loyalty data integration</strong> — Connect NoshGuard directly to your loyalty platform API for real-time purchase data rather than periodic CSV exports. Target: &lt;5 minute data freshness.</p>
       <p style="margin-bottom:0.75rem"><strong>2. Notification channel activation</strong> — Wire Twilio SMS and SendGrid email into the alert pipeline. Pilot used simulated sends; production requires live credentials and opt-in compliance review.</p>
-      <p style="margin-bottom:0.75rem"><strong>3. USDA live feed</strong> — Deploy a backend proxy to enable live USDA/FSIS recall ingestion alongside FDA. Covers meat and poultry recalls not available in FDA-only mode.</p>
+      <p style="margin-bottom:0.75rem"><strong>3. USDA live feed</strong> — Active: NoshGuard monitors USDA/FSIS recalls every 2 minutes/FSIS recall ingestion alongside FDA. Covers meat and poultry recalls not available in FDA-only mode.</p>
       <p style="margin-bottom:0.75rem"><strong>4. Customer enrollment</strong> — Define opt-in flow for customers to receive recall alerts. Options: loyalty app integration, email campaign, in-store QR code.</p>
       <p><strong>5. Production deployment</strong> — Move from Streamlit to a dedicated backend with proper uptime SLA, monitoring, and alerting. Estimated timeline: 4–6 weeks with one backend developer.</p>
     </div>
@@ -3192,7 +3192,7 @@ with tab1:
         with ft2:
             for r in [x for x in all_recalls if x["source"]=="USDA"]:
                 st.markdown(render_r(r),unsafe_allow_html=True)
-            st.caption("🔧 Live USDA: backend proxy needed")
+            st.caption("🔧 Live USDA: Active: NoshGuard monitors USDA/FSIS recalls every 2 minutes")
 
     with right:
         st.subheader("⚠️ Priority Alert Queue")
