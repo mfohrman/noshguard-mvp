@@ -2660,7 +2660,7 @@ def generate_pilot_report(
     allergen_count = sum(1 for m in current_matches if m.get("allergen_triggered"))
     upc_count      = sum(1 for m in current_matches if m.get("upc_match"))
     high_pri       = sum(1 for m in current_matches if m.get("priority",0) >= 70)
-    geo_filtered   = sum(1 for m in current_matches if m.get("geo_blocked"))
+    geo_filtered   = sum(1 for m in current_matches if m.get("geo_blocked") is True)
 
     generated_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
 
@@ -3209,7 +3209,7 @@ with tab1:
                 prod_trunc    = m["recall"]["product"][:60] + ("…" if len(m["recall"]["product"]) > 60 else "")
                 match_color   = "#C0392B" if m["decayed_score"] >= 70 else "#E07A1B"
                 bayes_color   = "#C0392B" if m["bayes_prob"] >= 0.75 else "#E07A1B"
-                vel_color     = "#C0392B" if m["vel_score"] >= 75 else "#E07A1B"
+                vel_color     = "#C0392B" if m.get("vel_score") >= 75 else "#E07A1B"
                 traj_block    = f'<div class="traj-upgrade" style="margin-top:4px">📈 {" · ".join(m["traj_reasons"][:2])}</div>' if m.get("traj_reasons") else ""
                 channels_str  = _channels(m["recall"]["cls"], is_allergen)
                 st.markdown(
@@ -3224,7 +3224,7 @@ with tab1:
                     f'<div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:0.68rem;color:#888">'
                     f'<div>Match (decayed)<br><span style="color:{match_color};font-weight:bold">{m["decayed_score"]}%</span></div>'
                     f'<div>P(still home)<br><span style="color:{bayes_color};font-weight:bold">{m["bayes_prob"]:.0%}</span></div>'
-                    f'<div>Velocity<br><span style="color:{vel_color};font-weight:bold">{m["vel_label"]}</span></div>'
+                    f'<div>Velocity<br><span style="color:{vel_color};font-weight:bold">{m.get("vel_label")}</span></div>'
                     f'</div>'
                     f'<div style="margin-top:4px;font-size:0.72rem;color:#888">📣 {channels_str}</div>'
                     f'{traj_block}'
@@ -3232,7 +3232,7 @@ with tab1:
                     unsafe_allow_html=True
                 )
 
-        non_blocked = [m for m in matches if not m["geo_blocked"]]
+        non_blocked = [m for m in matches if not m.get("geo_blocked")]
         if non_blocked:
             st.markdown("<br>", unsafe_allow_html=True)
             unsent       = db_get_unsent_matches(non_blocked)
@@ -4207,7 +4207,7 @@ with tab9:
             </div>""",unsafe_allow_html=True)
 
         st.markdown("<br>**Geo filter effectiveness**",unsafe_allow_html=True)
-        geo_b = sum(1 for m in matches if m["geo_blocked"])
+        geo_b = sum(1 for m in matches if m.get("geo_blocked") is True)
         geo_a = len(matches) - geo_b
         st.markdown(f"""<div class="match-card sev3" style="padding:0.75rem">
             <div style="font-size:0.82rem;color:#666">
