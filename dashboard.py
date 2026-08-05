@@ -17,7 +17,12 @@ st.set_page_config(page_title="NoshGuard", page_icon="🛡️", layout="wide")
 
 # ── Access control ──────────────────────────────────
 _code = st.text_input("Pilot access code", type="password", key="auth")
-if _code != st.secrets.get("PILOT_CODE", ""):
+_expected = st.secrets.get("PILOT_CODE", "")
+if not _expected:
+    st.markdown("### NoshGuard Grocer Dashboard")
+    st.error("Access control is not configured. Contact mitch@noshguard.com.")
+    st.stop()
+if _code != _expected:
     st.markdown("### NoshGuard Grocer Dashboard")
     st.caption("Restricted to NoshGuard pilot partners.")
     st.info("Request access: mitch@noshguard.com")
