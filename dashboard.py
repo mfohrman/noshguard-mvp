@@ -30,7 +30,7 @@ if _code != st.secrets.get("PILOT_CODE", ""):
 # running its own engine. One source of truth.
 # ═══════════════════════════════════════════════
 NOSHGUARD_API_URL = "https://noshguard-api.onrender.com"
-NOSHGUARD_API_KEY = "ng_demo_key_2025"
+NOSHGUARD_API_KEY = st.secrets.get("NOSHGUARD_API_KEY", "")
 API_HEADERS = {"X-API-Key": NOSHGUARD_API_KEY, "Content-Type": "application/json"}
 
 
