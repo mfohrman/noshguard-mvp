@@ -3185,7 +3185,7 @@ with tab1:
 
     with right:
         st.subheader("⚠️ Priority Alert Queue")
-        st.caption("Allergen alerts always #1 · then: match + velocity + Bayesian + risk")
+        st.caption("Allergen matches rank first · requires allergen data in the customer profile")
         if not matches:
             st.success("✅ No matches")
         else:
