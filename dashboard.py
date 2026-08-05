@@ -1273,8 +1273,8 @@ def _run_engine_sequential_reference(recalls):
 #                   powers the real history timeline
 #
 # SQLite is file-based — zero setup, zero config.
-# The .db file lives next to dashboard.py.
-# Survives app restarts, Streamlit reruns, everything.
+# The .db file lives in the OS temp dir (see DB_PATH below).
+# On Streamlit Cloud /tmp is ephemeral: data does NOT survive restarts.
 #
 # Thread safety: SQLite WAL mode + connection-per-thread
 # pattern. Each thread opens its own connection, never
@@ -4443,7 +4443,7 @@ with tab10:
             st.info("No poll history to export yet.")
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.caption("🗄️ All data persisted in noshguard.db (SQLite) · Survives restarts · Full history retained indefinitely")
+        st.caption("🗄️ Stored in noshguard.db (SQLite) in temporary storage - cleared when the app restarts - export below to keep a copy")
 
 
 # ══════════════════════════════════════
