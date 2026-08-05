@@ -78,4 +78,17 @@ lines. The real file is ~4,600. Always pull it through the browser and confirm
 the line count before analyzing or editing. This has misled three separate
 sessions, including one that concluded the file "did not match the spec."
 
-**Bracket notation.** Fields
+**Bracket notation.** Fields produced by `_api_matches_to_dashboard` are consumed
+as `m["key"]` throughout the file. Deleting a field raises `KeyError`. Set it to
+`None` and add a `.get()` guard at every read site.
+
+**`_score_one_pair` is the real engine** and already computes honestly. Do not
+"fix" it. `_api_matches_to_dashboard` is the API-path shim — that is the one that
+historically faked values.
+
+**GitHub web editor.** Use its find-and-replace, not whole-file paste. Verify the
+Find field took your input and matched exactly once before replacing. It has
+silently operated on the wrong content more than once.
+
+**Storage.** `/tmp` is ephemeral on both Render and Streamlit Cloud. Anything
+written there is wiped on restart. Do not describe it as persistent.
