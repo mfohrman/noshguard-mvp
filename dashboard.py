@@ -2685,24 +2685,7 @@ def generate_pilot_report(
         </tr>"""
 
     if not alert_rows:
-        # Use current session matches as fallback
-        for m in current_matches[:10]:
-            try:
-                dt = datetime.now().strftime("%b %d %I:%M %p")
-            except:
-                dt = "This session"
-            cls = m["recall"].get("cls","")
-            cls_color = "#c0392b" if "Class I" in cls and "II" not in cls else "#d4830a" if "Class II" in cls else "#27ae60"
-            mt = m.get("match_type","")
-            icon = {"upc":"🔵","allergen":"🚨","ingredient":"🧪","taxonomy":"🌿","keyword":"⚠️"}.get(mt,"⚠️")
-            alert_rows += f"""<tr>
-                <td style="padding:8px 12px;font-size:12px;color:#1a1a18">{dt}</td>
-                <td style="padding:8px 12px;font-size:12px;font-weight:500;color:#1a1a18">{m["customer"]["name"]}</td>
-                <td style="padding:8px 12px;font-size:11px;color:#4a4a46;max-width:220px">{m["recall"]["product"][:55]}{"…" if len(m["recall"]["product"])>55 else ""}</td>
-                <td style="padding:8px 12px;text-align:center"><span style="background:{cls_color};color:white;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold">{cls.replace("Class ","C")}</span></td>
-                <td style="padding:8px 12px;font-size:11px;color:#4a4a46">{icon} {mt}</td>
-                <td style="padding:8px 12px;font-size:11px;color:#4a4a46">{m["score"]}% · P{m["priority"]}</td>
-            </tr>"""
+        alert_rows = '<tr><td colspan="6" style="padding:14px;text-align:center;color:#888;">No alerts in this period.</td></tr>'
 
     # ── Poll log table rows ──
     poll_rows = ""
