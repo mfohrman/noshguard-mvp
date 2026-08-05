@@ -2394,9 +2394,9 @@ def _api_matches_to_dashboard(api_matches: list, customers: list, all_recalls: l
                 "source":           m.get("recall_source", "FDA"),
                 "upcs":             [],
                 "cluster_id":       m.get("recall_id"),
-                "states_affected":  20,
-                "units_affected":   50000,
-                "severity_scope":   "multi-state",
+                "states_affected":  None,
+                "units_affected":   None,
+                "severity_scope":   "unknown",
                 "distribution_states": None,
                 "primary_ingredient": None,
                 "allergen_trigger": m.get("allergen_name"),
@@ -2412,13 +2412,15 @@ def _api_matches_to_dashboard(api_matches: list, customers: list, all_recalls: l
         allergen    = m.get("allergen_alert", False)
         allergen_nm = m.get("allergen_name")
         days        = m.get("days_since_purchase", 14)
+        decayed_score, decay_factor = apply_time_decay(confidence, days, c["category"])
+        bayes_prob, bayes_label, bayes_explanation = bayesian_probability(c)
 
         dashboard_matches.append({
             "customer":          c,
             "recall":            r,
             "score":             confidence,
-            "decayed_score":     confidence,
-            "decay_factor":      0.8,
+            "decayed_score":     decayed_score,
+            "decay_factor":      decay_factor,
             "signals":           [f"{match_type} match via API"],
             "match_type":        match_type,
             "fp_warnings":       [],
@@ -2428,17 +2430,16 @@ def _api_matches_to_dashboard(api_matches: list, customers: list, all_recalls: l
             "ing_match":         match_type == "ingredient",
             "ing_name":          None,
             "ing_products":      [],
-            "geo_blocked":       False,
-            "geo_reason":        "API geo-filtered",
+            "geo_blocked":       None,
+            "geo_reason":        None,
             "clustered":         False,
             "trajectory":        None,
             "traj_reasons":      [],
-            "bayes_prob":        0.75,
-            "bayes_label":       "🔴 Very likely home",
-            "bayes_explanation": f"{days}d ago",
-            "vel_score":         60,
-            "vel_label":         "🟠 High",
-            "risk_score":        60,
+            "bayes_prob":        bayes_prob,
+            "bayes_label":       bayes_label,
+            "bayes_explanation": bayes_explanation,
+            "vel_score":         None,
+            "vel_label":         None,
             "priority":          priority,
             "household_id":      CUSTOMER_TO_HOUSEHOLD.get(c["id"]),
             "_pair_key":         f"{c['id']}|{r.get('cluster_id', r.get('product','')[:20])}",
@@ -3209,7 +3210,7 @@ with tab1:
                 prod_trunc    = m["recall"]["product"][:60] + ("…" if len(m["recall"]["product"]) > 60 else "")
                 match_color   = "#C0392B" if m["decayed_score"] >= 70 else "#E07A1B"
                 bayes_color   = "#C0392B" if m["bayes_prob"] >= 0.75 else "#E07A1B"
-                vel_color     = "#C0392B" if m.get("vel_score") >= 75 else "#E07A1B"
+                vel_color     = "#C0392B" if (m.get("vel_score") or 0) >= 75 else "#E07A1B"
                 traj_block    = f'<div class="traj-upgrade" style="margin-top:4px">📈 {" · ".join(m["traj_reasons"][:2])}</div>' if m.get("traj_reasons") else ""
                 channels_str  = _channels(m["recall"]["cls"], is_allergen)
                 st.markdown(
@@ -3224,7 +3225,7 @@ with tab1:
                     f'<div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:0.68rem;color:#888">'
                     f'<div>Match (decayed)<br><span style="color:{match_color};font-weight:bold">{m["decayed_score"]}%</span></div>'
                     f'<div>P(still home)<br><span style="color:{bayes_color};font-weight:bold">{m["bayes_prob"]:.0%}</span></div>'
-                    f'<div>Velocity<br><span style="color:{vel_color};font-weight:bold">{m.get("vel_label")}</span></div>'
+                    f'<div>Velocity<br><span style="color:{vel_color};font-weight:bold">{m.get("vel_label") or "n/a"}</span></div>'
                     f'</div>'
                     f'<div style="margin-top:4px;font-size:0.72rem;color:#888">📣 {channels_str}</div>'
                     f'{traj_block}'
