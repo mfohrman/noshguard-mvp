@@ -4515,19 +4515,6 @@ with tab11:
                 "error":             None,
             }]
 
-        if not alert_hist_r and matches:
-            # Build synthetic alert history from current session matches
-            alert_hist_r = [{
-                "customer_name":  m["customer"]["name"],
-                "recall_product": m["recall"]["product"],
-                "recall_cls":     m["recall"]["cls"],
-                "match_type":     m["match_type"],
-                "match_score":    m["score"],
-                "priority":       m["priority"],
-                "channel":        _channels(m["recall"]["cls"], m.get("allergen_triggered", False)),
-                "sent_at":        datetime.now().isoformat(),
-            } for m in matches[:20]]
-
         # Enrich db_stats with live session counts
         enriched_stats = {
             "total_alerts":     max(db_stats_r.get("total_alerts", 0), len(matches)),
