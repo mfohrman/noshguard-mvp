@@ -3161,7 +3161,8 @@ with tab1:
             sv, bc, bl = _sev(r["cls"])
             cc  = _cc(r["cls"])
             vs, vl = velocity_score(r)
-            vc  = "#c0392b" if vs >= 75 else "#d4830a" if vs >= 50 else "#27ae60"
+            # Unknown velocity renders neutral grey: a colour is read as a claim.
+            vc  = "#8a8a85" if vl == "⚪ Unknown" else "#c0392b" if vs >= 75 else "#d4830a" if vs >= 50 else "#27ae60"
             src = r.get("source", "FDA")
             src_cls = "src-fda" if src == "FDA" else "src-usda"
             prod = r.get("product","")
@@ -3236,7 +3237,7 @@ with tab1:
                 prod_trunc    = m["recall"]["product"][:60] + ("…" if len(m["recall"]["product"]) > 60 else "")
                 match_color   = "#C0392B" if m["decayed_score"] >= 70 else "#E07A1B"
                 bayes_color   = "#C0392B" if m["bayes_prob"] >= 0.75 else "#E07A1B"
-                vel_color     = "#C0392B" if (m.get("vel_score") or 0) >= 75 else "#E07A1B"
+                vel_color     = "#8a8a85" if m.get("vel_label") == "⚪ Unknown" else "#C0392B" if (m.get("vel_score") or 0) >= 75 else "#E07A1B"
                 traj_block    = f'<div class="traj-upgrade" style="margin-top:4px">📈 {" · ".join(m["traj_reasons"][:2])}</div>' if m.get("traj_reasons") else ""
                 channels_str  = _channels(m["recall"]["cls"], is_allergen)
                 st.markdown(
