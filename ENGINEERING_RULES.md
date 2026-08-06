@@ -92,3 +92,12 @@ silently operated on the wrong content more than once.
 
 **Storage.** `/tmp` is ephemeral on both Render and Streamlit Cloud. Anything
 written there is wiped on restart. Do not describe it as persistent.
+
+**Raw URLs and private repos.** `raw.githubusercontent.com` will not serve a
+private repo unauthenticated. A 14-character response is `404: Not Found`, not
+an empty file. Read private-repo contents through the blob view with `?plain=1`.
+
+**Raw URL staleness.** `raw.githubusercontent.com` serves stale content for 30+
+seconds after a commit, even with cache-busting query params. Never verify a
+commit through raw — it will show the pre-commit file and read as a failed write.
+Verify via the blob view with `?plain=1` or the commits atom feed.
