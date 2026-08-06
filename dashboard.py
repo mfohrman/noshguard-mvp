@@ -61,9 +61,9 @@ def api_get_recalls(force=False) -> tuple:
                     "from":             None,
                     "to":               None,
                     "cluster_id":       r.get("id"),
-                    "states_affected":  r.get("states_affected", 20),
-                    "units_affected":   r.get("units_affected", 50000),
-                    "severity_scope":   "multi-state",
+                    "states_affected":  r.get("states_affected"),
+                    "units_affected":   r.get("units_affected"),
+                    "severity_scope":   r.get("severity_scope", "unknown"),
                     "distribution_states": None,
                     "primary_ingredient": None,
                     "allergen_trigger": r.get("allergen_trigger"),
@@ -643,8 +643,10 @@ def cluster_recalls(recalls):
         lead["cluster_size"]=len(group)
         lead["cluster_products"]=[r["product"][:50] for r in group[1:]]
         lead["all_upcs"]=list(set(u for r in group for u in (r.get("upcs") or [])))
-        lead["states_affected"]=max(r.get("states_affected",0) or 0 for r in group)
-        lead["units_affected"]=sum(r.get("units_affected",0) or 0 for r in group)
+        _st=[r.get("states_affected") for r in group if r.get("states_affected") is not None]
+        _un=[r.get("units_affected")  for r in group if r.get("units_affected")  is not None]
+        lead["states_affected"]=max(_st) if _st else None
+        lead["units_affected"]=sum(_un) if _un else None
         canonical.append(lead)
     for r in unclustered:
         rc=r.copy(); rc.update({"cluster_size":1,"cluster_products":[],"all_upcs":r.get("upcs") or []})
@@ -652,12 +654,20 @@ def cluster_recalls(recalls):
     return canonical
 
 def velocity_score(recall):
+    scope =recall.get("severity_scope")
+    states=recall.get("states_affected")
+    units =recall.get("units_affected")
+    # Nothing real to score on: report unknown rather than inferring a level.
+    # Without this guard an empty recall scores 9 and renders "Low", which
+    # understates risk as badly as the old defaults overstated it. RULES #1.
+    if scope in (None,"","unknown") and states is None and units is None:
+        return 0,"⚪ Unknown"
     score=0
     scope_map={"national":40,"multi-state":25,"regional":10,"local":3,"unknown":5}
-    score+=scope_map.get(recall.get("severity_scope","unknown"),5)
-    states=recall.get("states_affected",0) or 0
+    score+=scope_map.get(scope or "unknown",5)
+    states=states or 0
     score+=30 if states>=40 else 20 if states>=20 else 12 if states>=10 else 6 if states>=5 else 2
-    units=recall.get("units_affected",0) or 0
+    units=units or 0
     score+=30 if units>=500000 else 20 if units>=100000 else 12 if units>=20000 else 6 if units>=5000 else 2
     score=min(score,100)
     label="🔴 Critical" if score>=75 else "🟠 High" if score>=50 else "🟡 Moderate" if score>=25 else "🟢 Low"
