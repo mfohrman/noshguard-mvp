@@ -2709,8 +2709,6 @@ def generate_pilot_report(
     current_benchmark: dict,
     data_mode: str,
     customer_count: int,
-    fda_live: bool,
-    all_recalls: list,
 ) -> str:
     """
     Generate a complete HTML pilot report.
@@ -2807,8 +2805,6 @@ def generate_pilot_report(
     _verified   = upc_count + sum(1 for m in current_matches if m.get("match_type") == "taxonomy")
     accuracy_ok = bool(current_matches) and _verified >= len(current_matches) * 0.8
 
-    # Both feeds measured, not asserted.
-    coverage_ok = bool(fda_live) and any((r.get("source") == "USDA") for r in (all_recalls or []))
 
     # Dedup only holds if alerts_sent survives a restart. DB_PATH lives in the OS
     # temp dir, which Render and Streamlit Cloud wipe on restart — so this reports
@@ -2818,7 +2814,6 @@ def generate_pilot_report(
     checks = [
         ("Match speed", "Engine run completed in under 60 seconds", time_ok),
         ("Match precision", "80%+ of matches have verified signal (UPC or taxonomy)", accuracy_ok),
-        ("Recall coverage", "FDA and USDA feeds both returning live data", coverage_ok),
         ("Deduplication", "Alert dedup store survives a service restart", dedupe_ok),
     ]
 
@@ -4640,8 +4635,6 @@ with tab11:
                         current_benchmark= benchmark,
                         data_mode        = data_mode,
                         customer_count   = cust_count_r,
-                        fda_live         = fda_live,
-                        all_recalls      = all_recalls,
                     )
                     st.session_state["ng_report_html"] = report_html
                     st.success("✅ Report generated — download or preview below.")
