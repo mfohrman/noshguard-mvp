@@ -2168,6 +2168,9 @@ UPLOAD_META_KEY    = "ng_upload_meta"
 # ═══════════════════════════════════════════════
 
 POLL_INTERVAL_SECONDS = 900   # 15 minutes — matches FDA update cadence
+# Every user-facing latency claim derives from this. Do not hardcode a number
+# in copy: three surfaces previously said "2 min" against a 900s interval.
+POLL_INTERVAL_MIN     = POLL_INTERVAL_SECONDS // 60
                                # Set to 60 for demo/testing
 
 # ── Module-level shared store ──
@@ -2610,11 +2613,11 @@ if not matches and all_recalls:
                 "Results below were computed by the local engine, not the API."
             )
 
-st.markdown("""
+st.markdown(f"""
 <div class="ng-header">
     <div>
         <h1>🛡️ NoshGuard</h1>
-        <p>Chicago Metro Beta &nbsp;·&nbsp; Grocer dashboard &nbsp;·&nbsp; Auto-refreshes every 2 min</p>
+        <p>Chicago Metro Beta &nbsp;·&nbsp; Grocer dashboard &nbsp;·&nbsp; Auto-refreshes every {POLL_INTERVAL_MIN} min</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -2673,7 +2676,7 @@ st.caption(
     f"{bm_pairs} pairs evaluated · "
     f"{bm_workers} threads · "
     f"{bm_ms}ms · "
-    f"background polling every 2 min"
+    f"background polling every {POLL_INTERVAL_MIN} min"
 )
 st.markdown("<br>",unsafe_allow_html=True)
 
@@ -3257,7 +3260,7 @@ with tab1:
         with ft2:
             for r in [x for x in all_recalls if x["source"]=="USDA"]:
                 st.markdown(render_r(r),unsafe_allow_html=True)
-            st.caption("🔧 Live USDA: Active: NoshGuard monitors USDA/FSIS recalls every 2 minutes")
+            st.caption(f"🔧 USDA feed: polled every {POLL_INTERVAL_MIN} minutes")
 
     with right:
         st.subheader("⚠️ Priority Alert Queue")
