@@ -2706,6 +2706,8 @@ def generate_pilot_report(
     current_benchmark: dict,
     data_mode: str,
     customer_count: int,
+    fda_live: bool,
+    all_recalls: list,
 ) -> str:
     """
     Generate a complete HTML pilot report.
@@ -2729,7 +2731,6 @@ def generate_pilot_report(
     allergen_count = sum(1 for m in current_matches if m.get("allergen_triggered"))
     upc_count      = sum(1 for m in current_matches if m.get("upc_match"))
     high_pri       = sum(1 for m in current_matches if m.get("priority",0) >= 70)
-    geo_filtered   = sum(1 for m in current_matches if m.get("geo_blocked") is True)
 
     generated_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
 
@@ -2796,16 +2797,26 @@ def generate_pilot_report(
 
     # ── Pilot success assessment ──
     time_ok     = isinstance(bm_ms, (int,float)) and bm_ms < 60000  # under 60s
-    accuracy_ok = (upc_count + sum(1 for m in current_matches if m.get("match_type") in ["taxonomy","keyword"])) >= len(current_matches) * 0.8
-    fp_ok       = geo_filtered < len(current_matches) * 0.3  # less than 30% geo-blocked
+
+    # Verified signal = UPC or taxonomy only. A bare substring keyword hit is the
+    # weakest evidence class and must not count toward a precision claim.
+    # An empty match set does not vacuously pass.
+    _verified   = upc_count + sum(1 for m in current_matches if m.get("match_type") == "taxonomy")
+    accuracy_ok = bool(current_matches) and _verified >= len(current_matches) * 0.8
+
+    # Both feeds measured, not asserted.
+    coverage_ok = bool(fda_live) and any((r.get("source") == "USDA") for r in (all_recalls or []))
+
+    # Dedup only holds if alerts_sent survives a restart. DB_PATH lives in the OS
+    # temp dir, which Render and Streamlit Cloud wipe on restart — so this reports
+    # FAIL until storage moves to Postgres. See ENGINEERING_RULES.md storage trap.
+    dedupe_ok   = not DB_PATH.startswith(os.environ.get("TMPDIR", "/tmp"))
 
     checks = [
         ("Match speed", "Engine run completed in under 60 seconds", time_ok),
-        ("Match precision", "85%+ of matches have verified signal (UPC, taxonomy, or keyword)", accuracy_ok),
-        ("False positive control", "Geo-filtering active — distribution-zone mismatches suppressed", fp_ok),
-        ("Recall coverage", "FDA + USDA dual-feed active", True),
-        ("Deduplication", "Alert deduplication via SQLite persistence", True),
-        ("Parallel architecture", "ThreadPoolExecutor — scales to 500k+ customers", True),
+        ("Match precision", "80%+ of matches have verified signal (UPC or taxonomy)", accuracy_ok),
+        ("Recall coverage", "FDA and USDA feeds both returning live data", coverage_ok),
+        ("Deduplication", "Alert dedup store survives a service restart", dedupe_ok),
     ]
 
     check_rows = ""
@@ -2817,8 +2828,6 @@ def generate_pilot_report(
             <td style="padding:8px 12px;font-size:11px;color:#4a4a46">{detail}</td>
             <td style="padding:8px 12px;font-size:12px;color:{color};text-align:center">{"Pass" if passed else "Review"}</td>
         </tr>"""
-
-    passed_count = sum(1 for _,_,p in checks if p)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -2994,10 +3003,9 @@ def generate_pilot_report(
     </table>
 
     <div class="assessment">
-      <div class="ass-score {'pass' if passed_count >= 5 else 'warn'}">{passed_count}/{len(checks)} criteria met</div>
-      <div style="font-size:0.82rem;color:#4a4a46;margin-top:6px">
-        {"The pilot demonstrates NoshGuard is technically ready for production deployment. All core benchmarks were met or exceeded." if passed_count >= 5
-         else "The pilot identified areas for refinement before production deployment. See recommendations below."}
+      <div style="font-size:0.82rem;color:#4a4a46">
+        Each criterion above reflects the measured state of this pilot run.
+        NoshGuard does not self-certify production readiness.
       </div>
     </div>
   </div>
@@ -4628,6 +4636,8 @@ with tab11:
                         current_benchmark= benchmark,
                         data_mode        = data_mode,
                         customer_count   = cust_count_r,
+                        fda_live         = fda_live,
+                        all_recalls      = all_recalls,
                     )
                     st.session_state["ng_report_html"] = report_html
                     st.success("✅ Report generated — download or preview below.")
