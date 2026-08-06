@@ -2735,6 +2735,18 @@ def generate_pilot_report(
 
     generated_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
 
+    # Observed range comes from real poll records only. If none exist, no range is
+    # claimed — pilot_start/pilot_end are operator-typed and prove nothing.
+    _stamps = sorted(p.get("polled_at") for p in poll_hist if p.get("polled_at"))
+    observed_range = None
+    if _stamps:
+        try:
+            _d0 = datetime.fromisoformat(_stamps[0]).strftime("%b %d, %Y")
+            _d1 = datetime.fromisoformat(_stamps[-1]).strftime("%b %d, %Y")
+            observed_range = _d0 if _d0 == _d1 else f"{_d0} – {_d1}"
+        except (ValueError, TypeError):
+            observed_range = None
+
     # ── Alert log table rows ──
     alert_rows = ""
     for a in alert_hist[:20]:
@@ -2902,6 +2914,8 @@ def generate_pilot_report(
       <div>Generated: <strong>{generated_at}</strong></div>
       <div>Data mode: <strong>{"Real loyalty data" if data_mode=="real" else "Demo / simulated data"}</strong></div>
       <div>Customers monitored: <strong>{customer_count:,}</strong></div>
+      <div>Observed range: <strong>{observed_range if observed_range else "no poll records"}</strong></div>
+      <div>Poll records: <strong>{len(poll_hist)}</strong></div>
       <div>Engine version: <strong>v8 · Parallel</strong></div>
       <div>Storage: <strong>SQLite in temp storage — cleared on service restart</strong></div>
     </div>
