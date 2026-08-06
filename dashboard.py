@@ -2188,6 +2188,7 @@ def _poll_once():
             alerts_dispatched=0,  # updated when alerts are sent
             engine_ms=benchmark.get("elapsed_ms", 0),
             fda_live=fda_live,
+            error=benchmark.get("api_error"),
         )
 
         now = datetime.now()
@@ -2456,6 +2457,7 @@ def run_engine_via_api(customers: list, all_recalls: list) -> tuple:
     """
     import time as _time
     start = _time.perf_counter()
+    api_error = None
 
     try:
         api_customers = _customers_to_api_format(customers)
@@ -2491,11 +2493,23 @@ def run_engine_via_api(customers: list, all_recalls: list) -> tuple:
             }
             return dashboard_matches, benchmark
 
-    except Exception as e:
-        print(f"API match error: {e} — falling back to local engine")
+        api_error = f"HTTP {res.status_code} from {NOSHGUARD_API_URL}/match"
+        print(f"run_engine_via_api: {api_error}")
 
-    # Fallback: local engine
-    return run_engine_v8(all_recalls), {}
+    except requests.exceptions.RequestException as e:
+        api_error = f"{type(e).__name__}: {e}"
+        print(f"run_engine_via_api: POST {NOSHGUARD_API_URL}/match failed — {api_error}")
+    except (ValueError, KeyError, TypeError) as e:
+        api_error = f"malformed API response — {type(e).__name__}: {e}"
+        print(f"run_engine_via_api: {api_error}")
+
+    # Fallback: local engine against the customers actually passed in.
+    # Never the hardcoded CUSTOMERS constant — see ENGINEERING_RULES.md #3.
+    matches, benchmark = run_engine_v8_with_customers(all_recalls, customers)
+    benchmark = dict(benchmark or {})
+    benchmark["source"]    = "local_fallback"
+    benchmark["api_error"] = api_error
+    return matches, benchmark
 
 # ═══════════════════════════════════════════════
 # LOAD DATA — via background polling system
@@ -2541,6 +2555,11 @@ poll_status   = poll_data["status"]
 if not matches and all_recalls:
     with st.spinner("Running engine via API..."):
         matches, benchmark = run_engine_via_api(CUSTOMERS, all_recalls)
+        if benchmark.get("api_error"):
+            st.error(
+                f"Match API unavailable — {benchmark['api_error']}. "
+                "Results below were computed by the local engine, not the API."
+            )
 
 st.markdown("""
 <div class="ng-header">
@@ -3549,6 +3568,12 @@ with tab2:
                     if preview_btn:
                         with st.spinner(f"Running engine against {n:,} customers..."):
                             preview_matches, preview_bm = run_engine_via_api(customers, all_recalls)
+                            if preview_bm.get("api_error"):
+                                st.error(
+                                    f"Match API unavailable — {preview_bm['api_error']}. "
+                                    f"Preview below was computed locally against your {n:,} uploaded "
+                                    "customers. No demo or sample data was substituted."
+                                )
                             st.session_state["upload_preview_result"] = {
                                 "matches":   preview_matches,
                                 "benchmark": preview_bm,
