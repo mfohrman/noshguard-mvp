@@ -1802,6 +1802,9 @@ COLUMN_ALIASES = {
                        "upc_code","scan_code","barcode_number"],
     "category":       ["category","department","dept","product_category",
                        "item_category","section"],
+    "allergens":      ["allergens","allergen","allergy","allergies","allergen_list",
+                       "allergy_list","food_allergies","known_allergies",
+                       "dietary_restrictions","dietary_restriction","restrictions"],
     "spend":          ["spend","amount","total","price","cost","sale_amount",
                        "transaction_amount","purchase_amount"],
     "loyalty_points": ["points","loyalty_points","reward_points","earned_points"],
@@ -1864,6 +1867,35 @@ def _detect_keywords(product_name: str, category: str) -> list:
              {"with","and","the","for","from","size","pack","case","each","unit"}]
     keywords.extend(words[:3])
     return list(set(keywords)) or [product_name.lower()[:20]]
+
+
+def _normalize_allergens(raw) -> list:
+    """
+    Map a free-text allergen column to canonical FDA_MAJOR_ALLERGENS keys.
+
+    allergen_check() compares the recall trigger against ALLERGEN_KEYWORDS keys,
+    so "Peanut" or "dairy" must resolve to "peanuts" / "milk" or the escalation
+    never fires. Unrecognised entries are dropped rather than guessed, and
+    allergens are NEVER inferred from purchase history. Absent column -> [].
+    """
+    if not raw:
+        return []
+    s = str(raw).strip().lower()
+    if s in ("", "none", "no", "n/a", "na", "null", "no allergies", "nil"):
+        return []
+    for sep in [";", "/", "|", "&", " and "]:
+        s = s.replace(sep, ",")
+    out = []
+    for tok in s.split(","):
+        tok = tok.strip()
+        if not tok:
+            continue
+        for canon, kws in ALLERGEN_KEYWORDS.items():
+            if tok == canon or tok in kws or any(k in tok for k in kws):
+                if canon not in out:
+                    out.append(canon)
+                break
+    return out
 
 
 def parse_csv_upload(file_bytes: bytes, filename: str) -> dict:
@@ -1966,6 +1998,7 @@ def parse_csv_upload(file_bytes: bytes, filename: str) -> dict:
             upc_val      = str(row.get(col["upc"],"")).strip()      if col.get("upc")     else ""
             category     = str(row.get(col["category"],"")).strip() if col.get("category") else ""
             pdate        = str(row.get(col["purchase_date"],"")).strip() if col.get("purchase_date") else ""
+            allergen_val = str(row.get(col["allergens"],"")).strip()     if col.get("allergens") else ""
 
             # Auto-detect category if not provided
             if not category and product_name:
@@ -2007,7 +2040,7 @@ def parse_csv_upload(file_bytes: bytes, filename: str) -> dict:
                     "lifetime_visits":     1,
                     "household_size":      2,
                     "has_children":        False,
-                    "allergens":           [],
+                    "allergens":           _normalize_allergens(allergen_val),
                     "purchase_history":    [],
                     "_source":             "csv_upload",
                 }
@@ -2026,6 +2059,11 @@ def parse_csv_upload(file_bytes: bytes, filename: str) -> dict:
                 # Pad UPC to 13 digits (EAN-13) or keep as-is
                 upc_clean = upc_val.zfill(13) if len(upc_val) <= 13 else upc_val
                 c["upcs"].append(upc_clean)
+
+            # Transaction mode: later rows may carry the allergen column too.
+            for _a in _normalize_allergens(allergen_val):
+                if _a not in c["allergens"]:
+                    c["allergens"].append(_a)
 
             if purchase_dt:
                 c["purchase_history"].append({"days_ago": days_since})
@@ -2363,6 +2401,7 @@ def _customers_to_api_format(customers: list) -> list:
             "email":       c.get("email", ""),
             "phone":       c.get("phone", ""),
             "state":       "IL",
+            "allergens":   c.get("allergens") or [],
             "purchases":   purchases,
         })
     return api_customers
@@ -3113,7 +3152,8 @@ Only include food items — skip non-food items like paper towels, soap, etc."""
 
 
 def enroll_via_api(name: str, email: str, phone: str, zip_code: str,
-                   purchases: list, channels: list) -> dict:
+                   purchases: list, channels: list,
+                   allergens: list = None) -> dict:
     """Call the live /enroll endpoint with extracted purchase data."""
     try:
         payload = {
@@ -3129,6 +3169,7 @@ def enroll_via_api(name: str, email: str, phone: str, zip_code: str,
                 }
                 for p in purchases
             ],
+            "allergens": allergens or [],
             "notification_channels": channels,
         }
         res = requests.post(
@@ -3704,6 +3745,13 @@ with tab3:
             default=["sms","email"],
             key="rc_channels"
         )
+        rc_allergens = st.multiselect(
+            "Food allergies (optional)",
+            options=FDA_MAJOR_ALLERGENS,
+            default=[],
+            key="rc_allergens",
+            help="Used to escalate recalls citing an undeclared allergen. Left empty means no allergen profile — nothing is inferred.",
+        )
 
         st.markdown("<br>**Upload receipt**", unsafe_allow_html=True)
         rc_file = st.file_uploader(
@@ -3831,6 +3879,7 @@ with tab3:
                                     zip_code  = rc_zip,
                                     purchases = all_items,
                                     channels  = rc_channels or ["email"],
+                                    allergens = rc_allergens,
                                 )
 
                             if enroll_result.get("enrolled"):
