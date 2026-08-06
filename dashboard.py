@@ -3013,19 +3013,16 @@ st.markdown(f"""<div style="background:{"#E8F5EC" if data_mode=="real" else "#FE
 
 # Re-run engine against active customer set if real data loaded
 if data_mode == "real" and uploaded_customers:
-    # Swap CUSTOMERS global temporarily for engine run
-    _orig_customers = CUSTOMERS.copy()
-    import sys
-    _module = sys.modules[__name__]
-    # Run engine against uploaded customers
+    # No globals() swap: pass the uploaded customers explicitly so the module-level
+    # CUSTOMERS constant is never mutated. The background poll thread reads that
+    # global every cycle — mutating it leaked uploaded customer data into
+    # _POLL_STORE and db_record_alert. See ENGINEERING_RULES.md #1 and #3.
     with st.spinner(f"Running engine against {len(uploaded_customers):,} real customers..."):
-        # Temporarily inject uploaded customers
-        orig = globals().get("CUSTOMERS", [])
-        globals()["CUSTOMERS"] = uploaded_customers
-        matches_real, benchmark_real = run_engine_v8(all_recalls, max_workers=min(16, len(uploaded_customers)//100 + 4))
-        globals()["CUSTOMERS"] = orig
-    matches   = matches_real
-    benchmark = benchmark_real
+        matches, benchmark = run_engine_v8_with_customers(
+            all_recalls,
+            uploaded_customers,
+            max_workers=min(16, len(uploaded_customers)//100 + 4),
+        )
     hh_matches = get_household_matches(matches)
 
 
