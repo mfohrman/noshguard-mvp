@@ -3658,10 +3658,13 @@ with tab2:
 
         st.markdown("<br>**Data security**",unsafe_allow_html=True)
         st.markdown("""<div style="background:white;border:1px solid #E8E3D9;border-radius:8px;padding:0.75rem;font-size:0.78rem;color:#666;line-height:1.6">
-            🔒 Uploaded data stays in your browser session only.<br>
-            Never transmitted to any external server.<br>
-            Cleared when you close the browser tab.<br>
-            Only aggregated match counts are written to the local SQLite DB.
+            🔒 Files are parsed on the NoshGuard server, not in your browser.<br>
+            Customer ID, name, email, phone and purchase history are sent over HTTPS
+            to the NoshGuard matching API (noshguard-api.onrender.com) to run matches.<br>
+            When an alert is dispatched, the customer ID and name are written to the
+            pilot database on the server. That database is cleared on service restart.<br>
+            Closing this tab clears your session. It does not remove data already sent
+            to the API or written to the alert log.
         </div>""", unsafe_allow_html=True)
 
 
