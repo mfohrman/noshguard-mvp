@@ -4572,24 +4572,16 @@ with tab11:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # ── Pull real data, supplement with live session if DB is sparse ──
+        # ── Pull real data from the DB. No supplementing from the session. ──
         db_stats_r   = db_get_stats()
         poll_hist_r  = db_get_poll_history(limit=50)
         alert_hist_r = db_get_alert_history(limit=100)
         cust_count_r = len(active_customers)
 
-        # Supplement empty DB with live session data
-        if not poll_hist_r and benchmark:
-            poll_hist_r = [{
-                "polled_at":         datetime.now().isoformat(),
-                "recalls_found":     len(all_recalls),
-                "new_recalls":       len(new_recall_ids) if "new_recall_ids" in dir() else 0,
-                "matches_found":     len(matches),
-                "alerts_dispatched": db_stats_r.get("total_alerts", 0),
-                "engine_ms":         benchmark.get("elapsed_ms", 0),
-                "fda_live":          1 if fda_live else 0,
-                "error":             None,
-            }]
+        # An empty poll history renders as empty. Do not synthesise a row from the
+        # current session: it is a page render, not a poll, and it reported "Clean".
+        # DB_PATH is in temp storage, so empty is the normal state after a restart.
+        # See ENGINEERING_RULES.md #2.
 
         # Enrich db_stats with live session counts
         enriched_stats = {
