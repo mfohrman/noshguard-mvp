@@ -2899,7 +2899,7 @@ def generate_pilot_report(
   <div class="header-top">
     <div>
       <div class="logo">🛡️ NoshGuard</div>
-      <div class="title">30-Day Pilot Report</div>
+      <div class="title">Pilot Report</div>
       <div class="subtitle">{grocer_name} &nbsp;·&nbsp; {pilot_start} – {pilot_end}</div>
     </div>
     <div class="header-meta">
@@ -2907,7 +2907,8 @@ def generate_pilot_report(
       <div>Generated: <strong>{generated_at}</strong></div>
       <div>Data mode: <strong>{"Real loyalty data" if data_mode=="real" else "Demo / simulated data"}</strong></div>
       <div>Customers monitored: <strong>{customer_count:,}</strong></div>
-      <div>Engine version: <strong>v8 · Parallel · SQLite</strong></div>
+      <div>Engine version: <strong>v8 · Parallel</strong></div>
+      <div>Storage: <strong>SQLite in temp storage — cleared on service restart</strong></div>
     </div>
   </div>
 </div>
@@ -2936,7 +2937,7 @@ def generate_pilot_report(
 
     <div class="callout">
       <div class="callout-label">The bottom line</div>
-      <div class="callout-text">Over {total_polls} polling cycles across the pilot period, NoshGuard monitored {unique_recalls} active recall events against {customer_count:,} loyalty members and identified {len(current_matches)} at-risk customers — {upc_count} verified by exact UPC barcode match with 100% certainty. {"Allergen alerts were triggered for " + str(allergen_count) + " customers with known sensitivities." if allergen_count else "No allergen-specific recalls occurred during the pilot period."} The engine ran in an average of {avg_engine_ms}ms per cycle, well within the 10-minute notification benchmark established at pilot kickoff.</div>
+      <div class="callout-text">Over {total_polls} polling cycles, NoshGuard monitored {unique_recalls} active recall events against {customer_count:,} loyalty members and identified {len(current_matches)} customers with matching purchases — {upc_count} matched on exact UPC barcode. {"Allergen alerts were triggered for " + str(allergen_count) + " customers with a declared matching allergen." if allergen_count else "No enrolled customer had a declared allergen profile matching a recall in this period."} The engine ran in an average of {avg_engine_ms}ms per cycle.</div>
     </div>
   </div>
 
@@ -2998,7 +2999,7 @@ def generate_pilot_report(
   <!-- PILOT ASSESSMENT -->
   <div class="section">
     <div class="sec-label">Pilot assessment</div>
-    <div class="sec-title">Success criteria review</div>
+    <div class="sec-title">Measured results</div>
 
     <table>
       <thead><tr><th>Criterion</th><th>Detail</th><th>Result</th></tr></thead>
@@ -3018,14 +3019,14 @@ def generate_pilot_report(
   <!-- NEXT STEPS -->
   <div class="section">
     <div class="sec-label">Recommended next steps</div>
-    <div class="sec-title">Path to production</div>
+    <div class="sec-title">Not yet implemented</div>
 
     <div style="font-size:0.88rem;color:#4a4a46;line-height:1.8">
       <p style="margin-bottom:0.75rem"><strong>1. Loyalty data integration</strong> — Connect NoshGuard directly to your loyalty platform API for real-time purchase data rather than periodic CSV exports. Target: &lt;5 minute data freshness.</p>
       <p style="margin-bottom:0.75rem"><strong>2. Notification channel activation</strong> — Wire Twilio SMS and SendGrid email into the alert pipeline. Pilot used simulated sends; production requires live credentials and opt-in compliance review.</p>
-      <p style="margin-bottom:0.75rem"><strong>3. USDA live feed</strong> — Active: NoshGuard monitors USDA/FSIS recalls every 2 minutes/FSIS recall ingestion alongside FDA. Covers meat and poultry recalls not available in FDA-only mode.</p>
+      <p style="margin-bottom:0.75rem"><strong>3. USDA live feed</strong> — Add live USDA/FSIS recall ingestion alongside FDA. USDA recalls in this pilot came from a fixed internal list, not a live feed. Covers meat and poultry recalls not available in FDA-only mode.</p>
       <p style="margin-bottom:0.75rem"><strong>4. Customer enrollment</strong> — Define opt-in flow for customers to receive recall alerts. Options: loyalty app integration, email campaign, in-store QR code.</p>
-      <p><strong>5. Production deployment</strong> — Move from Streamlit to a dedicated backend with proper uptime SLA, monitoring, and alerting. Estimated timeline: 4–6 weeks with one backend developer.</p>
+      <p><strong>5. Production deployment</strong> — Move from Streamlit to a dedicated backend with uptime SLA, monitoring, and alerting.</p>
     </div>
   </div>
 
