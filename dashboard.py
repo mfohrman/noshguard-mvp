@@ -89,8 +89,8 @@ def api_run_match(customers: list, recalls_raw: list) -> tuple:
             for p in c.get("purchases", []):
                 purchases.append({
                     "product_name":  p if isinstance(p, str) else p.get("product_name", ""),
-                    "purchase_date": c.get("purchase_date", datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
-                                     if hasattr(c.get("purchase_date", ""), "strftime") else "2025-04-01",
+                    "purchase_date": c["purchase_date"].strftime("%Y-%m-%d")
+                                     if hasattr(c.get("purchase_date"), "strftime") else None,
                     "category":      c.get("category", "general"),
                     "upc":           c.get("upcs", [None])[0] if c.get("upcs") else None,
                 })
@@ -99,7 +99,7 @@ def api_run_match(customers: list, recalls_raw: list) -> tuple:
                 "name":        c["name"],
                 "email":       c.get("email", ""),
                 "phone":       c.get("phone", ""),
-                "state":       "IL",
+                "state":       None,   # never defaulted; no state source here
                 "purchases":   purchases,
             })
 
@@ -674,15 +674,22 @@ def velocity_score(recall):
     return score,label
 
 def apply_time_decay(base_score,days,category):
+    # Unknown purchase age -> no decay claim, factor 1.0.
+    if days is None: return base_score,1.0
     half_life={"produce":5,"poultry":4,"meat":5,"deli":10,"dairy":12,"frozen":90,"pantry":180}.get(category,14)
     factor=math.pow(2,-days/half_life)
-    decayed=max(int(base_score*factor),15)
+    # No floor. A recall decayed to near-zero relevance reports that, rather than
+    # a manufactured minimum of 15. RULES #1.
+    decayed=max(int(base_score*factor),0)
     return decayed,factor
 
 def geo_filter(recall,customer):
     dist=recall.get("distribution_states")
     if dist is None: return True,"national"
-    state=STATE_NAMES.get(customer["id"],"??")
+    state=STATE_NAMES.get(customer["id"]) or customer.get("state")
+    # Unknown geography must not suppress a recall alert. Not filtering risks a
+    # false positive; filtering on a guess risks a missed exposure. RULES #1.
+    if not state: return True,"state unknown — not geo-filtered"
     return (state in dist),(f"✅ {state} in zone" if state in dist else f"🌍 {state} not in zone")
 
 def ingredient_match(recall,customer):
@@ -753,9 +760,14 @@ def bayesian_probability(customer):
 
     Returns: probability (0-1), explanation
     """
-    days = customer.get("days_since_purchase", 14)
-    interval = customer.get("purchase_interval_days", 14)
-    category = customer.get("category", "produce")
+    days     = customer.get("days_since_purchase")
+    interval = customer.get("purchase_interval_days")
+    category = customer.get("category") or "general"
+
+    # No purchase timing -> no estimate. A neutral 0.5 keeps the ranking arithmetic
+    # working without asserting anything about this customer.
+    if days is None or not interval:
+        return 0.5, "⚪ Unknown", "No purchase date or cycle on file — no shelf-life estimate"
 
     # Category consumption factor — how quickly is this type used?
     consumption_rate = {
@@ -772,12 +784,12 @@ def bayesian_probability(customer):
     cycle_position = min(days / interval, 1.5)  # how far through purchase cycle
 
     # Bayesian update: P(still home) = base_prob × (1 - consumption_rate × cycle_position)
-    base_prob = 0.95  # assume 95% chance item is home right after purchase
+    # UNVALIDATED heuristic constants. base_prob and the consumption rates above
+    # are estimates, not measured priors, and no data source exists for them.
+    # The frozen floor was removed: it forced every frozen item to read "Very
+    # likely home" regardless of age, overriding the calculation entirely.
+    base_prob = 0.95
     prob = base_prob * max(0, 1 - consumption_rate * cycle_position)
-
-    # Minimum probability for frozen — almost certainly still home
-    if category == "frozen":
-        prob = max(prob, 0.85)
 
     prob = round(min(max(prob, 0.02), 0.98), 2)
 
@@ -788,7 +800,7 @@ def bayesian_probability(customer):
 
     explanation = (
         f"Purchased {days}d ago · {interval}d cycle · "
-        f"{category} consumption rate · P = {prob:.0%}"
+        f"{category} shelf-life estimate (heuristic, not measured)"
     )
 
     return prob, label, explanation
@@ -961,19 +973,19 @@ def _score_one_pair(args):
     score = traj_score
 
     bayes_prob, bayes_label, bayes_explanation = bayesian_probability(c)
-    signals.append(f"🎯 P(home)={bayes_prob:.0%} {bayes_label}")
+    signals.append(f"🎯 shelf-life estimate: {bayes_label}")
 
-    days = c.get("days_since_purchase", 14)
+    days = c.get("days_since_purchase")
     decayed_score, decay_factor = apply_time_decay(score, days, c["category"])
 
-    hs = c.get("household_size", 1)
-    h_pts = 20 if hs >= 4 else 15 if hs == 3 else 10 if hs == 2 else 5
-    base_risk = min(
-        (40 if days <= 3 else 30 if days <= 7 else 20 if days <= 14 else 12 if days <= 21 else 5) +
-        {"weekly": 15, "biweekly": 20, "monthly": 25}.get(c.get("purchase_freq", ""), 10) +
-        h_pts + (15 if c.get("has_children") else 0),
-        100
-    )
+    # Unknown demographics contribute 0. Previously an absent household size scored
+    # 5 and an unknown shopping frequency scored 10, so invented facts raised a real
+    # customer's risk. RULES #1.
+    hs = c.get("household_size")
+    h_pts = 0 if not hs else (20 if hs >= 4 else 15 if hs == 3 else 10 if hs == 2 else 5)
+    d_pts = 0 if days is None else (40 if days <= 3 else 30 if days <= 7 else 20 if days <= 14 else 12 if days <= 21 else 5)
+    f_pts = {"weekly": 15, "biweekly": 20, "monthly": 25}.get(c.get("purchase_freq") or "", 0)
+    base_risk = min(d_pts + f_pts + h_pts + (15 if c.get("has_children") else 0), 100)
 
     if allergen_triggered:
         priority = 99
@@ -1219,10 +1231,10 @@ def _run_engine_sequential_reference(recalls):
 
             # BAYESIAN PROBABILITY
             bayes_prob, bayes_label, bayes_explanation = bayesian_probability(c)
-            signals.append(f"🎯 P(home)={bayes_prob:.0%} {bayes_label}")
+            signals.append(f"🎯 shelf-life estimate: {bayes_label}")
 
             # TIME DECAY
-            days = c.get("days_since_purchase", 14)
+            days = c.get("days_since_purchase")
             decayed_score, decay_factor = apply_time_decay(score, days, c["category"])
 
             # Customer risk
@@ -1802,6 +1814,7 @@ COLUMN_ALIASES = {
                        "upc_code","scan_code","barcode_number"],
     "category":       ["category","department","dept","product_category",
                        "item_category","section"],
+    "zip":            ["zip","zipcode","zip_code","postal_code","postcode"],
     "allergens":      ["allergens","allergen","allergy","allergies","allergen_list",
                        "allergy_list","food_allergies","known_allergies",
                        "dietary_restrictions","dietary_restriction","restrictions"],
@@ -1866,7 +1879,9 @@ def _detect_keywords(product_name: str, category: str) -> list:
     words = [w for w in p.split() if len(w) > 3 and w not in
              {"with","and","the","for","from","size","pack","case","each","unit"}]
     keywords.extend(words[:3])
-    return list(set(keywords)) or [product_name.lower()[:20]]
+    # No prefix fallback. A 20-character slice of a product name is not a keyword;
+    # callers fall back to the category instead. RULES #1.
+    return list(set(keywords))
 
 
 def _normalize_allergens(raw) -> list:
@@ -2006,7 +2021,7 @@ def parse_csv_upload(file_bytes: bytes, filename: str) -> dict:
 
             # Parse purchase date
             purchase_dt = None
-            days_since  = 14  # default assumption
+            days_since  = None  # unknown until a date parses
             if pdate:
                 for fmt in ["%Y-%m-%d","%m/%d/%Y","%m/%d/%y","%Y%m%d",
                             "%d/%m/%Y","%d-%m-%Y","%b %d %Y","%B %d %Y"]:
@@ -2027,7 +2042,7 @@ def parse_csv_upload(file_bytes: bytes, filename: str) -> dict:
                     "store":               store,
                     "date":                purchase_dt.strftime("%b %d, %Y") if purchase_dt else "Unknown",
                     "spend":               f"${spend}" if spend and not spend.startswith("$") else spend or "N/A",
-                    "purchase_date":       purchase_dt or datetime.now() - timedelta(days=14),
+                    "purchase_date":       purchase_dt,
                     "days_since_purchase": days_since,
                     "keywords":            [],
                     "brands":              [],
@@ -2035,11 +2050,11 @@ def parse_csv_upload(file_bytes: bytes, filename: str) -> dict:
                     "purchases":           [],
                     "upcs":                [],
                     "purchase_freq":       "unknown",
-                    "purchase_interval_days": 14,
-                    "avg_basket":          0,
-                    "lifetime_visits":     1,
-                    "household_size":      2,
-                    "has_children":        False,
+                    "purchase_interval_days": None,
+                    "avg_basket":          None,
+                    "lifetime_visits":     None,
+                    "household_size":      None,
+                    "has_children":        None,
                     "allergens":           _normalize_allergens(allergen_val),
                     "purchase_history":    [],
                     "_source":             "csv_upload",
@@ -2384,7 +2399,9 @@ def _customers_to_api_format(customers: list) -> list:
         for p in c.get("purchases", []):
             pname = p if isinstance(p, str) else p.get("product_name", "")
             pd = c.get("purchase_date")
-            pdate = pd.strftime("%Y-%m-%d") if hasattr(pd, "strftime") else "2025-04-01"
+            # Unknown date -> None. The API treats a null purchase_date as "no decay,
+            # no shelf-life penalty" rather than assuming one. Never invent a date.
+            pdate = pd.strftime("%Y-%m-%d") if hasattr(pd, "strftime") else None
             purchases.append({
                 "product_name":  pname,
                 "purchase_date": pdate,
@@ -2394,7 +2411,7 @@ def _customers_to_api_format(customers: list) -> list:
         for upc in c.get("upcs", []):
             purchases.append({
                 "product_name":  c.get("purchases", [""])[0] if c.get("purchases") else "",
-                "purchase_date": "2025-04-01",
+                "purchase_date": pdate,
                 "upc":           upc,
                 "category":      c.get("category", "general"),
             })
@@ -2403,7 +2420,8 @@ def _customers_to_api_format(customers: list) -> list:
             "name":        c["name"],
             "email":       c.get("email", ""),
             "phone":       c.get("phone", ""),
-            "state":       "IL",
+            "state":       None,   # never defaulted; no state source on upload
+            "zip_code":    c.get("zip") or None,
             "allergens":   c.get("allergens") or [],
             "purchases":   purchases,
         })
@@ -2478,12 +2496,18 @@ def _api_matches_to_dashboard(api_matches: list, customers: list, all_recalls: l
                 "cluster_products": [],
             }
 
-        confidence  = m.get("confidence", 50)
-        priority    = m.get("priority", 50)
-        match_type  = m.get("match_type", "keyword")
+        # A match with no confidence cannot be ranked. Skip it and log rather than
+        # inventing a mid-range 50. match_type defaults to "unknown", never to a
+        # specific evidence class. RULES #1, #7.
+        confidence  = m.get("confidence")
+        if confidence is None:
+            print(f"_api_matches_to_dashboard: match for {cid} has no confidence; skipped")
+            continue
+        priority    = m.get("priority", confidence)
+        match_type  = m.get("match_type") or "unknown"
         allergen    = m.get("allergen_alert", False)
         allergen_nm = m.get("allergen_name")
-        days        = m.get("days_since_purchase", 14)
+        days        = m.get("days_since_purchase")
         decayed_score, decay_factor = apply_time_decay(confidence, days, c["category"])
         bayes_prob, bayes_label, bayes_explanation = bayesian_probability(c)
 
@@ -4052,7 +4076,7 @@ These are different risk profiles. The engine now knows the difference.""")
                 <div style="display:flex;justify-content:space-between;align-items:center">
                     <div>
                         <div style="font-size:0.88rem;font-weight:500;color:#1a1a1a">{m["customer"]["name"]}</div>
-                        <div style="font-size:0.74rem;color:#666">{m["customer"]["category"]} · {m["customer"]["purchase_freq"]} shopper · {m["customer"]["days_since_purchase"]}d ago</div>
+                        <div style="font-size:0.74rem;color:#666">{m["customer"]["category"]} · {m["customer"]["purchase_freq"]} shopper · {str(m["customer"]["days_since_purchase"]) + "d ago" if m["customer"].get("days_since_purchase") is not None else "purchase date unknown"}</div>
                     </div>
                     <div style="text-align:right">
                         <div style="font-size:1.3rem;font-weight:bold;color:{bar_c}">{prob:.0%}</div>
