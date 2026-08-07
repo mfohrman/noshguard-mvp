@@ -383,6 +383,19 @@ STATE_NAMES = {
     "LYL-551247":"CO","LYL-884422":"TX","LYL-116638":"OH",
 }
 
+# Category consumption factors used by the shelf-life estimate.
+# UNVALIDATED: these are estimates, not measured rates. No study, dataset or
+# vendor source backs them. Any UI that displays them must say so. RULES #1, #4.
+CATEGORY_CONSUMPTION_RATES = {
+    "produce": 0.85,   # most produce consumed before next shop
+    "poultry": 0.90,   # raw poultry consumed same week
+    "meat":    0.85,
+    "deli":    0.70,   # deli lasts a bit longer
+    "frozen":  0.20,   # frozen stays home much longer
+    "dairy":   0.75,
+}
+CATEGORY_CONSUMPTION_DEFAULT = 0.70
+
 CATEGORY_WORDS = {
     "produce":["spinach","lettuce","romaine","salad","vegetable","greens","iceberg"],
     "meat":   ["beef","hamburger","ground","steak","burger","pork","chuck"],
@@ -769,15 +782,8 @@ def bayesian_probability(customer):
     if days is None or not interval:
         return 0.5, "⚪ Unknown", "No purchase date or cycle on file — no shelf-life estimate"
 
-    # Category consumption factor — how quickly is this type used?
-    consumption_rate = {
-        "produce": 0.85,   # most produce consumed before next shop
-        "poultry": 0.90,   # raw poultry consumed same week
-        "meat":    0.85,
-        "deli":    0.70,   # deli lasts a bit longer
-        "frozen":  0.20,   # frozen stays home much longer
-        "dairy":   0.75,
-    }.get(category, 0.70)
+    # Single source of truth, shared with the Scoring tab table.
+    consumption_rate = CATEGORY_CONSUMPTION_RATES.get(category, CATEGORY_CONSUMPTION_DEFAULT)
 
     # If days_since_purchase < interval, likely still have it
     # Probability decays based on how far through their cycle they are
@@ -4045,26 +4051,34 @@ with tab4:
 # TAB 5: BAYESIAN PROBABILITY
 # ══════════════════════════════════════
 with tab5:
-    st.subheader("🎯 Bayesian Purchase Probability")
-    st.caption("Estimates P(item still in home) using purchase cadence, category consumption rate, and time since purchase.")
+    st.subheader("🎯 Shelf-life estimate")
+    st.caption("A ranking heuristic combining purchase cadence, an assumed category "
+               "consumption rate, and time since purchase. It is not a measured "
+               "probability and is not derived from observed customer behaviour.")
     st.markdown("<br>",unsafe_allow_html=True)
 
     col1,col2=st.columns(2)
     with col1:
         st.markdown("**How it works**")
-        st.info("""**Time decay alone** knows a purchase is 14 days old. It doesn't know how often the customer shops.
+        st.info("""**Time decay alone** uses only how old a purchase is. It ignores how often the customer shops.
 
-**Bayesian inference** knows that a weekly shopper who bought spinach 5 days ago is 85% likely to still have it — because they're 5 days into a 7-day cycle, and spinach is consumed quickly.
+**This heuristic** also weighs shopping cadence and an assumed per-category consumption rate, so a weekly shopper 5 days into a 7-day cycle ranks differently from a monthly shopper 10 days into a 30-day one.
 
-A monthly shopper who bought frozen pizza 10 days ago is 92% likely to still have it — because they're only ⅓ through their cycle, and frozen items stay home.
+The output is a relative ranking signal. The percentages below come from the assumptions in the table, not from observed data, and no figure here has been validated against what customers actually still have at home.""")
 
-These are different risk profiles. The engine now knows the difference.""")
-
-        st.markdown("<br>**Consumption rates by category**",unsafe_allow_html=True)
+        st.markdown("<br>**Assumed consumption rates by category**",unsafe_allow_html=True)
+        st.caption("These are internal assumptions, not measured rates. No study or "
+                   "dataset backs them. They are inputs to a ranking heuristic, not findings.")
+        _cat_rows = [("🥬 Produce","produce","Assumed consumed before next shop"),
+                     ("🍗 Poultry","poultry","Assumed same-week use"),
+                     ("🥩 Meat","meat","Assumed short shelf life"),
+                     ("🥪 Deli","deli","Assumed medium shelf life"),
+                     ("🧀 Dairy","dairy","Assumed medium shelf life"),
+                     ("🍕 Frozen","frozen","Assumed to stay home longest")]
         st.table({
-            "Category":["🥬 Produce","🍗 Poultry","🥩 Meat","🥪 Deli","🧀 Dairy","🍕 Frozen"],
-            "Consumption rate":["85%","90%","85%","70%","75%","20%"],
-            "Logic":["Consumed before next shop","Same-week use","Short shelf life","Medium shelf","Medium shelf","Stays home longest"]
+            "Category":[r[0] for r in _cat_rows],
+            "Assumed rate":[f"{CATEGORY_CONSUMPTION_RATES.get(r[1], CATEGORY_CONSUMPTION_DEFAULT):.0%}" for r in _cat_rows],
+            "Basis":[r[2] for r in _cat_rows]
         })
 
     with col2:
@@ -4079,7 +4093,7 @@ These are different risk profiles. The engine now knows the difference.""")
                         <div style="font-size:0.74rem;color:#666">{m["customer"]["category"]} · {m["customer"]["purchase_freq"]} shopper · {str(m["customer"]["days_since_purchase"]) + "d ago" if m["customer"].get("days_since_purchase") is not None else "purchase date unknown"}</div>
                     </div>
                     <div style="text-align:right">
-                        <div style="font-size:1.3rem;font-weight:bold;color:{bar_c}">{prob:.0%}</div>
+                        <div style="font-size:1.3rem;font-weight:bold;color:{bar_c}">{"n/a" if m["customer"].get("days_since_purchase") is None else f"~{prob:.0%}"}</div>
                         <div style="font-size:0.68rem;color:#888">{label}</div>
                     </div>
                 </div>
