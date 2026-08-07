@@ -2716,9 +2716,9 @@ def generate_pilot_report(
     """
 
     # ── Compute summary stats ──
-    total_alerts    = db_stats.get("total_alerts", len(current_matches))
+    total_alerts    = db_stats.get("total_alerts", 0)
     unique_recalls  = db_stats.get("unique_recalls", 0)
-    total_polls     = db_stats.get("total_polls", len(poll_hist))
+    total_polls     = db_stats.get("total_polls", 0)
     engine_ms_vals  = [p.get("engine_ms",0) for p in poll_hist if p.get("engine_ms",0) > 0]
     avg_engine_ms   = int(sum(engine_ms_vals)/len(engine_ms_vals)) if engine_ms_vals else current_benchmark.get("elapsed_ms",0)
     new_recalls_sum = sum(p.get("new_recalls",0) for p in poll_hist)
@@ -2993,7 +2993,7 @@ def generate_pilot_report(
 
     <table style="margin-bottom:1rem">
       <thead><tr><th>Poll time</th><th>Recalls found</th><th>Matches found</th><th>Engine runtime</th><th>Status</th></tr></thead>
-      <tbody>{poll_rows if poll_rows else "<tr><td colspan='5' style='padding:12px;color:#666;text-align:center'>Poll history populates after the first 15-minute polling cycle completes</td></tr>"}</tbody>
+      <tbody>{poll_rows if poll_rows else f"<tr><td colspan='5' style='padding:12px;color:#666;text-align:center'>Poll history populates after the first {POLL_INTERVAL_MIN}-minute polling cycle completes</td></tr>"}</tbody>
     </table>
 
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
@@ -4597,24 +4597,26 @@ with tab11:
         # DB_PATH is in temp storage, so empty is the normal state after a restart.
         # See ENGINEERING_RULES.md #2.
 
-        # Enrich db_stats with live session counts
-        enriched_stats = {
-            "total_alerts":     max(db_stats_r.get("total_alerts", 0), len(matches)),
-            "unique_customers": max(db_stats_r.get("unique_customers", 0), len(set(m["customer"]["id"] for m in matches))),
-            "unique_recalls":   max(db_stats_r.get("unique_recalls", 0), len(all_recalls)),
-            "total_polls":      max(db_stats_r.get("total_polls", 0), poll_count, len(poll_hist_r)),
+        # Recorded pilot totals, straight from the DB. The previous max() against
+        # live-session counts compared different quantities (alerts dispatched vs
+        # matches found; recalls recorded vs recalls in the current feed) and existed
+        # only to hide a DB emptied by the temp-storage restart. Rule 1 and 2.
+        report_stats = {
+            "total_alerts":   db_stats_r.get("total_alerts", 0),
+            "unique_recalls": db_stats_r.get("unique_recalls", 0),
+            "total_polls":    db_stats_r.get("total_polls", 0),
         }
 
-        st.markdown("**Live data snapshot for this report**")
+        st.markdown("**Recorded pilot totals**")
         snap_cols = st.columns(2)
         with snap_cols[0]:
-            st.metric("Recalls monitored", enriched_stats["unique_recalls"])
-            st.metric("Matches found",     enriched_stats["total_alerts"])
+            st.metric("Recalls recorded",  report_stats["unique_recalls"])
+            st.metric("Alerts dispatched", report_stats["total_alerts"])
         with snap_cols[1]:
-            st.metric("Engine polls",      enriched_stats["total_polls"])
+            st.metric("Engine polls",      report_stats["total_polls"])
             st.metric("Customers",         f"{cust_count_r:,}")
 
-        if enriched_stats["total_alerts"] == 0:
+        if report_stats["total_alerts"] == 0:
             st.info("💡 Run the engine and approve some alerts in the Dashboard tab to populate a richer report.")
 
     with rp_right:
@@ -4634,7 +4636,7 @@ with tab11:
                         grocer_contact   = grocer_contact,
                         pilot_start      = pilot_start,
                         pilot_end        = pilot_end,
-                        db_stats         = enriched_stats,
+                        db_stats         = report_stats,
                         poll_hist        = poll_hist_r,
                         alert_hist       = alert_hist_r,
                         current_matches  = matches,
