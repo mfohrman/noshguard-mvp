@@ -2417,10 +2417,29 @@ def _api_matches_to_dashboard(api_matches: list, customers: list, all_recalls: l
     """
     # Build lookup dicts
     customer_by_id = {c["id"]: c for c in customers}
-    recall_by_product = {}
+
+    # Bind on the API's own recall id. The previous 40-character substring match
+    # could attach a match to a different recall and show the customer the wrong
+    # product, firm and hazard class. Keying on a truncated name also let two
+    # recalls sharing a 40-char prefix silently overwrite each other.
+    recall_by_id = {}
     for r in all_recalls:
-        key = r.get("product", "")[:40].lower()
-        recall_by_product[key] = r
+        rid = r.get("cluster_id")
+        if rid is not None:
+            recall_by_id.setdefault(rid, r)
+
+    # Exact full-name index, and only for names that identify one recall.
+    _name_counts = {}
+    for r in all_recalls:
+        _nm = (r.get("product") or "").strip().lower()
+        if _nm:
+            _name_counts[_nm] = _name_counts.get(_nm, 0) + 1
+    recall_by_name = {
+        (r.get("product") or "").strip().lower(): r
+        for r in all_recalls
+        if (r.get("product") or "").strip().lower()
+        and _name_counts[(r.get("product") or "").strip().lower()] == 1
+    }
 
     dashboard_matches = []
     for m in api_matches:
@@ -2429,13 +2448,13 @@ def _api_matches_to_dashboard(api_matches: list, customers: list, all_recalls: l
         if not c:
             continue
 
-        # Find matching recall
+        # Find matching recall: exact id, then exact unambiguous name, then nothing.
+        # No fuzzy fallback — a synthetic recall below carries the API's own product,
+        # firm and reason, which is correct data. A wrong bind is not.
         rproduct = m.get("recall_product", "")
-        r = None
-        for key, recall in recall_by_product.items():
-            if key in rproduct.lower() or rproduct.lower()[:40] in key:
-                r = recall
-                break
+        r = recall_by_id.get(m.get("recall_id"))
+        if r is None:
+            r = recall_by_name.get(rproduct.strip().lower())
 
         # Build synthetic recall if not found
         if not r:
