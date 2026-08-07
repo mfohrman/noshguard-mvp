@@ -101,3 +101,7 @@ an empty file. Read private-repo contents through the blob view with `?plain=1`.
 seconds after a commit, even with cache-busting query params. Never verify a
 commit through raw — it will show the pre-commit file and read as a failed write.
 Verify via the blob view with `?plain=1` or the commits atom feed.
+
+**Nested string interpolation fails silently.** A `{PLACEHOLDER}` inside a plain
+string nested within an f-string template renders as literal text, and the diff
+looks correct. Verify the inner string carries an `f` prefix.
