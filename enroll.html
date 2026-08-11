@@ -906,7 +906,7 @@ if (_utms.utm_source) sessionStorage.setItem('ng_utms', JSON.stringify(_utms));
     <div class="step">
       <div class="step-num">02</div>
       <div class="step-title">We watch. You don't have to.</div>
-      <p class="step-desc">NoshGuard monitors FDA and USDA recall databases every two minutes. When a new recall drops, we run it against your purchase history instantly.</p>
+      <p class="step-desc">NoshGuard monitors FDA and USDA recall databases continuously, around the clock. When a new recall drops, we run it against your purchase history immediately.</p>
     </div>
     <div class="step">
       <div class="step-num">03</div>
@@ -933,8 +933,8 @@ if (_utms.utm_source) sessionStorage.setItem('ng_utms', JSON.stringify(_utms));
         <p class="stat-desc">New food recalls issued every week by the FDA. Most consumers never hear about them.</p>
       </div>
       <div class="stat">
-        <div class="stat-num">2<span>min</span></div>
-        <p class="stat-desc">How often NoshGuard checks for new recalls — so you know before you take another bite</p>
+        <div class="stat-num">24<span>/7</span></div>
+        <p class="stat-desc">Continuous monitoring of FDA and USDA recall feeds — so you know before you take another bite</p>
       </div>
       <div class="stat">
         <div class="stat-num">$0</div>
@@ -1030,7 +1030,7 @@ if (_utms.utm_source) sessionStorage.setItem('ng_utms', JSON.stringify(_utms));
       <!-- Q5 -->
       <div style="padding:1.5rem 0;border-bottom:1px solid #E2E8F0;">
         <div style="font-size:1rem;font-weight:600;color:#0F172A;margin-bottom:0.625rem;">How quickly will I get an alert?</div>
-        <div style="font-size:0.9rem;color:#64748B;line-height:1.75;">NoshGuard checks FDA and USDA recall feeds every two minutes, around the clock. From the moment a recall is officially issued to the moment your text arrives is typically under five minutes — often less.</div>
+        <div style="font-size:0.9rem;color:#64748B;line-height:1.75;">NoshGuard monitors the FDA and USDA recall feeds continuously, around the clock. When a new recall is published, we match it against enrolled households and send alerts within minutes. The agencies themselves can take hours or days to publish a recall after it is issued — that part is outside anyone's control, which is exactly why being told the moment it posts matters.</div>
       </div>
 
       <!-- Q6 -->
@@ -1228,11 +1228,16 @@ form.addEventListener('submit', async function(e) {
     referrer:     _utmData.referrer     || document.referrer || '',
   };
 
-  // If receipt file uploaded, try to extract products via Claude vision
+  // Read the receipt, if one was attached.
+  //
+  // A failure here is reported, not hidden. An enrolment with no purchases
+  // cannot be matched against any recall, so telling someone they are covered
+  // when extraction failed is the worst outcome available.
+  let receiptWarning = '';
   const file = fileInput.files[0];
   if (file) {
     try {
-      const base64 = await fileToBase64(file);
+      const base64    = await fileToBase64(file);
       const mediaType = file.type || 'image/jpeg';
       const extracted = await extractFromReceipt(base64, mediaType);
       if (extracted && extracted.length > 0) {
@@ -1241,29 +1246,32 @@ form.addEventListener('submit', async function(e) {
           category:      item.category || 'general',
           purchase_date: new Date().toISOString().split('T')[0],
         }));
+      } else {
+        receiptWarning = 'We couldn’t find any grocery items on that photo. ' +
+                         'Reply to your welcome email with what you bought and ' +
+                         'we’ll add it.';
       }
-    } catch(err) {
-      console.warn('Receipt extraction failed, continuing without:', err);
+    } catch (err) {
+      console.warn('Receipt extraction failed:', err);
+      receiptWarning = (err && err.message ? err.message : 'We couldn’t read that receipt.') +
+                       ' You’re enrolled — reply to your welcome email with what ' +
+                       'you bought and we’ll add it.';
     }
   }
 
-  // Call the NoshGuard API
+  // Call the NoshGuard API. /enroll takes no API key.
   try {
     const API_URL = 'https://noshguard-api.onrender.com';
-    const API_KEY = 'ng_demo_key_2025';
 
     const res = await fetch(`${API_URL}/enroll`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': API_KEY,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
+    if (!res.ok) throw new Error('Enrolment failed with HTTP ' + res.status);
     const data = await res.json();
 
-    // Show success
     formState.style.display = 'none';
     successState.style.display = 'block';
 
@@ -1271,13 +1279,40 @@ form.addEventListener('submit', async function(e) {
       document.getElementById('match-count').textContent = data.immediate_matches;
       matchAlert.style.display = 'block';
     }
+    if (receiptWarning) showReceiptNotice(receiptWarning);
 
-  } catch(err) {
-    // Still show success — don't leave user hanging on network error
-    formState.style.display = 'none';
-    successState.style.display = 'block';
+  } catch (err) {
+    // Never claim success on a failed enrolment. The previous version showed
+    // the "You're protected" screen even when nothing had been saved.
+    console.error('Enrolment failed:', err);
+    submitBtn.classList.remove('loading');
+    submitBtn.disabled = false;
+    showReceiptNotice(
+      'We couldn’t complete your sign-up just now — nothing was saved. ' +
+      'Please check your connection and try again, or email mitch@noshguard.com.',
+      true
+    );
   }
 });
+
+// Inline notice under the form/success panel. `isError` styles it red.
+function showReceiptNotice(text, isError) {
+  let el = document.getElementById('receipt-notice');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'receipt-notice';
+    el.style.cssText =
+      'margin-top:1rem;padding:0.85rem 1rem;border-radius:8px;' +
+      'font-size:0.84rem;line-height:1.5;';
+    const card = document.querySelector('.enroll-card');
+    if (card) card.appendChild(el);
+  }
+  el.style.background = isError ? 'rgba(196,30,42,0.06)' : 'rgba(224,122,27,0.08)';
+  el.style.border     = isError ? '1px solid rgba(196,30,42,0.25)'
+                                : '1px solid rgba(224,122,27,0.3)';
+  el.style.color      = isError ? '#9B1621' : '#8A4A0B';
+  el.textContent      = text;
+}
 
 function fileToBase64(file) {
   return new Promise((res, rej) => {
@@ -1288,35 +1323,32 @@ function fileToBase64(file) {
   });
 }
 
+// Receipt reading runs on the NoshGuard API, not in this page.
+//
+// This used to POST straight to api.anthropic.com with no x-api-key header, so
+// every call returned 401, this function returned [], and the caller's catch
+// swallowed it. Users saw "we'll read it automatically" and nothing was read —
+// 21 of 23 enrolled households ended up with an empty purchase list and could
+// never be matched to a recall.
+//
+// Putting a key in this file would not fix it. This page is public; a key here
+// is a key published. The call belongs on the server, where the key lives in
+// an environment variable.
+//
+// Throws on failure rather than returning []. Silence is what caused the bug.
 async function extractFromReceipt(base64, mediaType) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('https://noshguard-api.onrender.com/enroll/receipt', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 500,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mediaType, data: base64 },
-          },
-          {
-            type: 'text',
-            text: 'Extract all food/grocery items from this receipt. Return ONLY a JSON array like: [{"product_name":"Barilla Pasta","category":"pantry"}]. Categories: produce, meat, poultry, dairy, frozen, pantry, beverage, bakery, snack, deli. No markdown, no explanation.',
-          },
-        ],
-      }],
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image_base64: base64, media_type: mediaType }),
   });
-  if (!res.ok) return [];
+  if (!res.ok) {
+    let detail = 'We couldn’t read that receipt.';
+    try { detail = (await res.json()).detail || detail; } catch (e) {}
+    throw new Error(detail);
+  }
   const data = await res.json();
-  const text = data.content?.[0]?.text || '[]';
-  return JSON.parse(text.replace(/```json|```/g,'').trim());
+  return Array.isArray(data.items) ? data.items : [];
 }
 
 // ── ZIP INPUT — numbers only ──
