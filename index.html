@@ -232,6 +232,22 @@
   gtag('js', new Date());
   gtag('config', 'G-HTH2FZ7TQR', { page_title: document.title, send_page_view: true });
 </script>
+
+<style>
+/* Shared nav links. Added 2026-08-12: only index.html had real navigation, so
+   anyone landing on /recalls or /grocers from search had no route anywhere and
+   bounced. `color: inherit` is deliberate — grocers.html has a dark green nav
+   with white text, the rest are light, and inheriting means one rule works on
+   both without per-page overrides. */
+.ng-navlinks { display:flex; align-items:center; gap:1.25rem; margin-left:auto; margin-right:1rem; }
+.ng-navlinks a {
+  font-size:0.84rem; font-weight:500; color:inherit; opacity:0.75;
+  text-decoration:none; white-space:nowrap; transition:opacity .15s;
+}
+.ng-navlinks a:hover { opacity:1; text-decoration:underline; }
+.ng-navlinks a[aria-current="page"] { opacity:1; font-weight:600; }
+@media (max-width: 820px) { .ng-navlinks { display:none; } }
+</style>
 </head>
 <body>
 
@@ -243,7 +259,7 @@
     <span></span><span></span><span></span>
   </button>
   </div>
-</nav>
+<div class="ng-navlinks"><a href="/" aria-current="page">Home</a><a href="/recalls">Recent recalls</a><a href="/grocers">For grocers</a><a href="/enroll">Get free alerts</a></div></nav>
 
 <div class="nav-drop" id="navDrop" role="navigation" aria-label="Site navigation">
   <ul>
@@ -262,8 +278,8 @@
 <section style="background: var(--cream);">
   <div class="hero">
     <div class="hero-label fade-up"><div class="pulse"></div>Free consumer food recall alerts</div>
-    <h1 class="fade-up">Eat with<br><em>confidence.</em></h1>
-    <p class="hero-sub fade-up">NoshGuard monitors FDA and USDA recalls and alerts you when something you've bought is affected &mdash; before it makes your family sick. We're in beta and accepting our first 500 households in the Chicago area.</p>
+    <h1 class="fade-up">You shouldn't have to<br><em>follow food recalls.</em></h1>
+    <p class="hero-sub fade-up">We watch the FDA and USDA recall feeds so you don't have to, and tell you if something you've already bought is affected. Free, no app, and quiet until it matters. We're in beta and accepting our first 500 households in the Chicago area.</p>
     <div class="hero-actions fade-up">
       <a href="/enroll" class="btn-primary">Get Free Alerts</a>
       <div style="display:flex;flex-direction:column;gap:0.35rem;">

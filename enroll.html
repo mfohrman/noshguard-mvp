@@ -761,6 +761,22 @@ function getUTMParams() {
 const _utms = getUTMParams();
 if (_utms.utm_source) sessionStorage.setItem('ng_utms', JSON.stringify(_utms));
 </script>
+
+<style>
+/* Shared nav links. Added 2026-08-12: only index.html had real navigation, so
+   anyone landing on /recalls or /grocers from search had no route anywhere and
+   bounced. `color: inherit` is deliberate — grocers.html has a dark green nav
+   with white text, the rest are light, and inheriting means one rule works on
+   both without per-page overrides. */
+.ng-navlinks { display:flex; align-items:center; gap:1.25rem; margin-left:auto; margin-right:1rem; }
+.ng-navlinks a {
+  font-size:0.84rem; font-weight:500; color:inherit; opacity:0.75;
+  text-decoration:none; white-space:nowrap; transition:opacity .15s;
+}
+.ng-navlinks a:hover { opacity:1; text-decoration:underline; }
+.ng-navlinks a[aria-current="page"] { opacity:1; font-weight:600; }
+@media (max-width: 820px) { .ng-navlinks { display:none; } }
+</style>
 </head>
 <body>
 
@@ -771,13 +787,13 @@ if (_utms.utm_source) sessionStorage.setItem('ng_utms', JSON.stringify(_utms));
   </a>
   <span class="nav-badge">Free · No App Needed</span>
   <a href="#" onclick="cmOpen();return false;" style="font-size:.875rem;color:var(--green);font-weight:500;text-decoration:none;border:1px solid var(--green);padding:.45rem 1rem;border-radius:6px;transition:all .2s;" onmouseover="this.style.background='var(--green)';this.style.color='white';" onmouseout="this.style.background='transparent';this.style.color='var(--green)';">Contact Us</a>
-</nav>
+<div class="ng-navlinks"><a href="/">Home</a><a href="/recalls">Recent recalls</a><a href="/grocers">For grocers</a></div></nav>
 
 <!-- HERO -->
 <div class="hero">
   <div class="hero-content">
     <div class="eyebrow">Food Safety Alerts</div>
-    <h1>Eat with<br><em>confidence.</em></h1>
+    <h1>You shouldn't have to<br><em>follow food recalls.</em></h1>
     <p class="hero-sub">
       NoshGuard monitors FDA and USDA recall databases in real time.
       When something you bought gets recalled, we text and email you
@@ -1046,7 +1062,7 @@ if (_utms.utm_source) sessionStorage.setItem('ng_utms', JSON.stringify(_utms));
 <!-- CTA -->
 <div class="cta-section">
   <div class="section-eyebrow">Get started</div>
-  <div class="section-title">Eat with confidence.</div>
+  <div class="section-title">Protection you don't have to think about.</div>
   <p class="cta-sub">It takes 60 seconds and it's free. The next recall could already be in your pantry.</p>
   <a href="#" onclick="document.getElementById('name').focus();window.scrollTo({top:0,behavior:'smooth'});return false;" class="cta-btn">
     ✓ &nbsp;Enroll now — it's free

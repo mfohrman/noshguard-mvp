@@ -414,6 +414,22 @@
   });
 </script>
 <!-- End Google Analytics -->
+
+<style>
+/* Shared nav links. Added 2026-08-12: only index.html had real navigation, so
+   anyone landing on /recalls or /grocers from search had no route anywhere and
+   bounced. `color: inherit` is deliberate — grocers.html has a dark green nav
+   with white text, the rest are light, and inheriting means one rule works on
+   both without per-page overrides. */
+.ng-navlinks { display:flex; align-items:center; gap:1.25rem; margin-left:auto; margin-right:1rem; }
+.ng-navlinks a {
+  font-size:0.84rem; font-weight:500; color:inherit; opacity:0.75;
+  text-decoration:none; white-space:nowrap; transition:opacity .15s;
+}
+.ng-navlinks a:hover { opacity:1; text-decoration:underline; }
+.ng-navlinks a[aria-current="page"] { opacity:1; font-weight:600; }
+@media (max-width: 820px) { .ng-navlinks { display:none; } }
+</style>
 </head>
 <body>
 
@@ -425,14 +441,14 @@
     <a href="/" class="nav-link">For Consumers</a>
     <a href="#" onclick="openPilotModal(); return false;" class="nav-cta">Start 30-Day Pilot</a>
   </div>
-</nav>
+<div class="ng-navlinks"><a href="/">Home</a><a href="/recalls">Recent recalls</a><a href="/enroll">Get free alerts</a></div></nav>
 
 <!-- HERO -->
 <section class="hero">
   <div class="hero-text">
     <div class="hero-eyebrow"><div class="live-dot"></div> FDA &amp; USDA monitored 24/7</div>
-    <h1>A recall hits.<br>Your customers find out <em>from the news.</em><br><span style="font-family:'DM Sans',sans-serif;font-size:0.52em;font-weight:300;font-style:normal;color:rgba(244,162,97,0.65);letter-spacing:0.04em;display:block;margin-top:0.5rem;">Or not at all.</span></h1>
-    <p class="hero-sub">NoshGuard closes the gap between when a recall is issued and when your customers know — automatically, at scale, before it becomes your problem.</p>
+    <h1>When a recall hits,<br>your customers should<br><em>hear it from you.</em></h1>
+    <p class="hero-sub">Right now they hear it from the news &mdash; or not at all. NoshGuard closes the gap between when a recall is issued and when your customers know: automatic, purchase-matched notification, with your store as the brand on the alert. No loyalty card infrastructure required.</p>
     <div class="hero-actions">
       <a href="#" onclick="openPilotModal(); return false;" class="btn-amber">Start Your Free 30-Day Pilot</a>
       <a href="#how-it-works" class="btn-ghost">See how it works</a>
