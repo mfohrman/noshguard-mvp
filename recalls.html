@@ -137,7 +137,8 @@ window.ngTrackForm=function(e,f){try{fetch(C+"/t/form",{method:"POST",headers:{"
         '<h2 style="font-family:\'DM Serif Display\',serif;font-size:1.2rem;color:#1E293B;line-height:1.35;margin:0 0 0.5rem;">' + esc(r.product) + '</h2>' +
         (r.firm ? '<div style="font-size:0.86rem;color:#475569;margin-bottom:0.75rem;">' + esc(r.firm) + '</div>' : '') +
         (r.reason ? '<div style="background:#F0FDF4;border-left:3px solid #1B4332;padding:0.75rem 1rem;border-radius:0 6px 6px 0;font-size:0.88rem;color:#1E293B;line-height:1.6;margin-bottom:1rem;"><strong>Why:</strong> ' + esc(r.reason) + '</div>' : '') +
-        (r.states ? '<div style="font-size:0.8rem;color:#64748B;margin-bottom:0.75rem;">Distribution: ' + esc([].concat(r.states).join(', ')) + '</div>' : '') +
+        (r.distribution ? '<div style="font-size:0.8rem;color:#64748B;margin-bottom:0.5rem;"><strong>Distribution:</strong> ' + esc(r.distribution) + '</div>' : '') +
+        (r.brand_count > 1 ? '<div style="font-size:0.8rem;color:#1B4332;background:rgba(27,67,50,0.06);border-radius:6px;padding:0.5rem 0.75rem;margin-bottom:0.75rem;">NoshGuard is also watching <strong>' + r.brand_count + '</strong> related store brands that share a manufacturer with this product.</div>' : '') +
         '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">' +
           '<a href="' + esc(srcUrl) + '" target="_blank" rel="noopener" style="font-size:0.82rem;color:#1B4332;font-weight:600;">Official notice &rarr;</a>' +
         '</div>' +
