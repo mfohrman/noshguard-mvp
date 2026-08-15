@@ -116,7 +116,10 @@
   /* RECEIPT SCAN SECTION */
   .receipt-section {
     background: var(--green);
-    padding: 4rem 2rem;
+    /* Extra top padding: the nav is position:fixed, so this section scrolls
+       underneath it and the camera glyph ended up sitting right against the
+       nav bar at one scroll position. */
+    padding: 6rem 2rem 4.5rem;
     text-align: center;
   }
   .receipt-section-inner {
@@ -126,8 +129,10 @@
   .receipt-section-icon {
     font-size: 3rem;
     display: block;
-    margin-bottom: 1.25rem;
-    line-height: 1;
+    margin-bottom: 1.75rem;
+    /* line-height:1 clipped the emoji's own ascender against the element above.
+       Emoji glyphs overflow a 1.0 line box on most platforms. */
+    line-height: 1.25;
   }
   .receipt-section h2 {
     font-family: 'DM Serif Display', serif;
