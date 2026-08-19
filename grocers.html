@@ -781,6 +781,7 @@ async function submitPilot(e) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload)
     });
+       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || ('Request failed: ' + res.status)); }
     const data = await res.json();
     if (data.success) {
       document.getElementById('formContent').style.display = 'none';
