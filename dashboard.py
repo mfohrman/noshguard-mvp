@@ -42,7 +42,7 @@ API_HEADERS = {"X-API-Key": NOSHGUARD_API_KEY, "Content-Type": "application/json
 def api_get_recalls(force=False) -> tuple:
     """Fetch recalls from the live API instead of FDA directly."""
     try:
-        url = f"{NOSHGUARD_API_URL}/recalls?limit=25{'&force=true' if force else ''}"
+        url = f"{NOSHGUARD_API_URL}/recalls?limit=100{'&force=true' if force else ''}"
         res = requests.get(url, headers=API_HEADERS, timeout=15)
         if res.status_code == 200:
             data = res.json()
