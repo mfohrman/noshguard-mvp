@@ -3281,7 +3281,7 @@ with tab1:
             reason = r.get("reason","")
             date = r.get("date","")
             prod_trunc  = (prod[:85] + "…") if len(prod) > 85 else prod
-            firm_trunc  = firm[:55]
+            firm_trunc  = (firm or "")[:55]
             reason_trunc = reason[:100]
             upc_span    = "<span class='upc-badge'>🔵 UPC</span>" if r.get("all_upcs") else ""
             traj        = get_trajectory(r)
