@@ -1335,6 +1335,25 @@ form.addEventListener('submit', async function(e) {
       document.getElementById('match-count').textContent = data.immediate_matches;
       matchAlert.style.display = 'block';
     }
+
+    const scanned = fileInput.files && fileInput.files.length > 0;
+    const note = document.createElement('p');
+    note.style.cssText = 'margin-top:1rem;font-size:0.9rem;line-height:1.6;';
+    if (data.no_items_found) {
+      note.style.color = '#B45309';
+      note.textContent = scanned
+        ? "We couldn't read any grocery items from that receipt. It may be blurry, or not a grocery receipt. Nothing is being monitored yet — try a clearer photo."
+        : "You're enrolled. Scan a grocery receipt whenever you're ready and we'll start watching those items.";
+    } else {
+      note.style.color = '#475569';
+      const added = data.items_added || 0;
+      const dupes = data.items_already_on_file || 0;
+      const total = data.items_monitored || 0;
+      note.textContent = added + (added === 1 ? ' item added' : ' items added')
+        + (dupes ? ', ' + dupes + ' already on file' : '')
+        + '. We are now monitoring ' + total + (total === 1 ? ' item' : ' items') + ' from your receipts.';
+    }
+    successState.appendChild(note);
     if (receiptWarning) showReceiptNotice(receiptWarning);
 
   } catch (err) {
