@@ -1277,6 +1277,10 @@ form.addEventListener('submit', async function(e) {
     // number because the input exists, not because they want texts.
     notification_channels: smsConsent ? ['sms', 'email'] : ['email'],
     sms_consent: smsConsent,
+    // Language is inferred from the browser, never asked - there is no
+    // picklist on this form. The API normalizes anything starting with 'es'
+    // to Spanish and everything else to English, so send the raw tag.
+    language: (navigator.language || navigator.userLanguage || 'en'),
     utm_source:   _utmData.utm_source   || '',
     utm_medium:   _utmData.utm_medium   || '',
     utm_campaign: _utmData.utm_campaign || '',
