@@ -72,6 +72,13 @@ nav {
   .nav-drop ul li button.nav-link-btn:hover { background: rgba(27,67,50,0.05); }
 .nav-drop ul li.nav-grocer-link a { color: var(--amber); font-weight: 600; }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-HTH2FZ7TQR"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-HTH2FZ7TQR', { page_title: document.title, send_page_view: true });
+</script>
 </head>
 <body>
 
@@ -123,12 +130,12 @@ nav {
   <h2>Cookies and Tracking</h2>
   <p>NoshGuard sets four cookies. None of them are used for advertising, and we do not sell or share cookie data with advertisers.</p>
   <ul>
-    <li><strong>ng_vid</strong> — our own first-party visitor ID, set by NoshGuard. It stores a randomly generated identifier so we can understand how visitors move through the site: which pages are viewed, in what order, and which site referred you. The cookie itself holds only that random identifier — no name, email, or phone number. If you submit a form on our site, we send the email address you entered to our CRM alongside this identifier, as described above. Lasts about one year. Set on every page of noshguard.com.</li>
-    <li><strong>ng_cid</strong> — an identifier written only if you arrive at noshguard.com through a link that carries a tracking tag, such as a link in an email we sent. It lets us connect your visit to the outreach or record that referred you, so we can tell which of our communications are working. Lasts about one year.</li>
+    <li><strong>ng_vid</strong> — our own first-party visitor ID, set by NoshGuard. It stores a randomly generated identifier so we can understand how visitors move through the site: which pages are viewed, in what order, and which site referred you. The cookie itself holds only that random identifier — no name, email, or phone number. If you submit a form on our site, we send the email address you entered to our CRM alongside this identifier, as described above. Lasts about one year. Set only on our page for grocers.</li>
+    <li><strong>ng_cid</strong> — an identifier written only if you arrive at our page for grocers through a link that carries a tracking tag, such as a link in an email we sent. It lets us connect your visit to the outreach or record that referred you, so we can tell which of our communications are working. Lasts about one year. Set only on our page for grocers.</li>
     <li><strong>_ga</strong> — set by Google Analytics 4 to tell one visitor apart from another for aggregate traffic reporting. Lasts about two years by default.</li>
     <li><strong>_ga_HTH2FZ7TQR</strong> — set by Google Analytics 4 to keep session state for our specific analytics property. Lasts about two years by default.</li>
   </ul>
-  <p>The two Google Analytics cookies load only on our home page, our enrollment page, and our page for grocers. They do not load on this Privacy Policy page, on our Terms of Service page, or on our recalls page. Our own cookies, ng_vid and ng_cid, are set across the whole site.</p>
+  <p>The two Google Analytics cookies load on every page of noshguard.com, including this Privacy Policy page. Our own cookies, ng_vid and ng_cid, are set only on our page for grocers.</p>
   <p><strong>How to opt out.</strong> Every major browser can block or delete cookies for a single site — look under "Cookies and site data" or "Privacy" in your browser's settings. Clearing ng_vid or ng_cid means we simply stop recognizing your browser between visits. To opt out of Google Analytics across every site that uses it, install Google's official browser add-on at <a href="https://tools.google.com/dlpage/gaoptout">tools.google.com/dlpage/gaoptout</a>.</p>
 
   <h2>Data Retention</h2>
@@ -148,19 +155,6 @@ nav {
 </div>
 
 <footer>© 2026 NoshGuard LLC · <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> · <a href="/enroll">Sign up free</a></footer>
-<!-- NoshGuard CRM visitor analytics -->
-<script>
-(function(){var C="https://noshguard-crm.onrender.com",A="consumer";
-function g(n){var m=document.cookie.match("(?:^|; )"+n+"=([^;]*)");return m?decodeURIComponent(m[1]):""}
-function s(n,v){document.cookie=n+"="+encodeURIComponent(v)+"; path=/; max-age=31536000; SameSite=Lax; Secure"}
-function u(){return([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,function(c){return(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)})}
-var v=g("ng_vid");if(!v){v=u();s("ng_vid",v)}
-var p=new URLSearchParams(location.search),c=p.get("ng_cid");if(c){s("ng_cid",c)}else{c=g("ng_cid")}
-var i=new Image(1,1);i.src=C+"/t/p.gif?vid="+v+"&path="+encodeURIComponent(location.pathname)+"&ref="+encodeURIComponent(document.referrer)+"&aud="+A+(c?"&cid="+encodeURIComponent(c):"");
-window.ngTrackForm=function(e,f){try{fetch(C+"/t/form",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:e,form:f||"website",vid:v}),keepalive:true})}catch(x){}};
-})();
-</script>
-
 <script>
 /* Single shared nav. 2026-08-13: every page had a different header — some with
    a CTA pill crowding the logo, some with inline text links, only index.html
