@@ -275,6 +275,9 @@
   .ng-match{align-self:flex-start;max-width:88%;border:1px solid #F3C9A3;background:#FFF7EF;border-radius:12px;padding:0.75rem 1rem;font-size:0.85rem;line-height:1.5;color:#1a1a1a;}
   .ng-match strong{display:block;margin-bottom:0.2rem;}
   .ng-match .ng-tag{display:inline-block;font-size:0.7rem;font-weight:600;letter-spacing:0.04em;background:#E07A1B;color:#fff;border-radius:100px;padding:1px 8px;margin-right:6px;}
+  .ng-match.ng-weak{background:#fff;border-color:#E2E8F0;color:#475569;}
+  .ng-match.ng-weak .ng-tag{background:#94A3B8;}
+  .ng-weak-label{align-self:flex-start;font-size:0.78rem;color:#64748B;margin-top:0.25rem;}
   .ng-cta{align-self:flex-start;font-size:0.85rem;}
   .ng-cta a{color:var(--green);font-weight:500;}
   .ng-chips{display:flex;flex-wrap:wrap;gap:0.5rem;padding:0 1.25rem 0.9rem;}
@@ -328,9 +331,9 @@
     log.scrollTop = log.scrollHeight;
     return d;
   }
-  function addMatch(m){
+  function addMatch(m, weak){
     var d = document.createElement('div');
-    d.className = 'ng-match';
+    d.className = weak ? 'ng-match ng-weak' : 'ng-match';
     var s = document.createElement('strong');
     s.textContent = m.product || 'Recalled product';
     d.appendChild(s);
@@ -366,7 +369,16 @@
         var reply = j.reply || (j.detail && typeof j.detail === 'string' ? j.detail : null) ||
           "Sorry, something went wrong on our side, so I couldn't check that. Please try again in a minute.";
         add('ng-msg bot', reply);
-        if (j.result && j.result.matches && j.result.recalled) { j.result.matches.forEach(addMatch); }
+        if (j.result && j.result.matches && j.result.recalled) {
+          var ms = j.result.matches;
+          var strong = ms.filter(function(m){ return m.strength !== 'weaker'; });
+          var weak = ms.filter(function(m){ return m.strength === 'weaker'; });
+          strong.forEach(function(m){ addMatch(m, false); });
+          if (weak.length) {
+            add('ng-weak-label', 'Weaker matches, less likely to be what you bought:');
+            weak.forEach(function(m){ addMatch(m, true); });
+          }
+        }
         if (j.kind === 'result') { addCta(); }
         history.push({ role: 'user', text: text.slice(0, 1000) });
         history.push({ role: 'assistant', text: reply.slice(0, 1000) });
