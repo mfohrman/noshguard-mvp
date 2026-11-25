@@ -109,7 +109,10 @@ nav {
 </div>
 
 <div class="container">
-  <p class="section-label">Recent recalls &mdash; live from FDA and USDA</p>
+  <p class="section-label">Latest from FDA and USDA</p>
+  <div id="recall-list" aria-live="polite"><p style="color:#64748B;font-size:0.9rem;">Loading current recalls&hellip;</p></div>
+  <p id="recall-meta" style="font-size:0.75rem;color:#94A3B8;margin:0.5rem 0 2.5rem;"></p>
+  <p class="section-label">Plain-English recall guides</p>
 
 <article data-recall-slug="calabrese-sold-in-eden-brothers-salmonella-2026.html" style="background:white;border-radius:12px;padding:2rem;margin-bottom:1.5rem;border:1px solid rgba(0,0,0,0.07);box-shadow:0 1px 4px rgba(0,0,0,0.05);">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.75rem;flex-wrap:wrap;">
@@ -1109,14 +1112,7 @@ nav {
 
 
 
-  <!-- Rendered from https://noshguard-api.onrender.com/public/recalls.
-       Until 2026-08-12 the cards below this point were hand-typed HTML and had
-       been showing May recalls for three months. This is the SEO surface; stale
-       data on it reads as an abandoned site. -->
-  <div id="recall-list" aria-live="polite">
-    <p style="color:#64748B;font-size:0.9rem;">Loading current recalls&hellip;</p>
-  </div>
-  <p id="recall-meta" style="font-size:0.75rem;color:#94A3B8;margin-top:1rem;"></p>
+
 
   <div class="enroll-strip">
     <h3>Never check this page again.</h3>
@@ -1169,8 +1165,19 @@ nav {
     var srcUrl = r.url || (r.source === 'USDA'
       ? 'https://www.fsis.usda.gov/recalls-alerts'
       : 'https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts');
-    return '' +
-      '';
+    var prod = String(r.product || '');
+    if (prod.length > 160) prod = prod.slice(0, 157) + '...';
+    return '<div style="background:white;border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:0.75rem;border:1px solid rgba(0,0,0,0.07);">' +
+      '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:0.75rem;margin-bottom:0.4rem;">' +
+        (r.cls ? '<span style="font-weight:700;color:' + color + ';">' + esc(r.cls) + '</span>' : '') +
+        '<span style="font-weight:600;color:#64748B;">' + esc(r.source || '') + '</span>' +
+        (when ? '<span style="color:#94A3B8;">' + esc(when) + '</span>' : '') +
+      '</div>' +
+      '<div style="font-weight:600;color:#1E293B;line-height:1.35;">' + esc(r.firm || 'Recalled product') + '</div>' +
+      (prod ? '<div style="font-size:0.88rem;color:#475569;margin-top:0.2rem;">' + esc(prod) + '</div>' : '') +
+      (r.reason ? '<div style="font-size:0.85rem;color:#64748B;margin-top:0.35rem;">Reason: ' + esc(r.reason) + '</div>' : '') +
+      '<a href="' + esc(srcUrl) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:0.5rem;font-size:0.82rem;font-weight:600;color:#0E7C7B;">Official ' + esc(r.source || '') + ' notice &rarr;</a>' +
+    '</div>';
   }
 
   fetch(API)

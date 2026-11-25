@@ -1415,5 +1415,10 @@ async function cmSubmit(e){
   drop.querySelectorAll('a').forEach(function(a){ a.addEventListener('click', navClose); });
 })();
 </script>
+<script>/* Prefill from homepage receipt form: /enroll?email=...&phone=... */
+(function(){try{var q=new URLSearchParams(location.search);
+['email','phone'].forEach(function(k){var v=q.get(k),el=document.getElementById(k);if(v&&el&&!el.value)el.value=v.slice(0,120);});
+if(q.get('email')){var f=document.getElementById('receipt-file');if(f&&f.scrollIntoView)setTimeout(function(){f.closest('form,div').scrollIntoView({block:'center'});},300);}
+}catch(e){}})();</script>
 </body>
 </html>
